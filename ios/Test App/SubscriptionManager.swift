@@ -174,14 +174,6 @@ enum StoreError: Error {
 
 // MARK: - Product Extensions for Display
 extension Product {
-    var displayPrice: String {
-        return self.displayPrice
-    }
-
-    var displayName: String {
-        return self.displayName
-    }
-
     var localizedPrice: String {
         let formatter = NumberFormatter()
         formatter.numberStyle = .currency

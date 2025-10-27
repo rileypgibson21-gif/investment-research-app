@@ -186,7 +186,7 @@ struct FinancialChartView: View {
         if allowNegative {
             // For earnings/profit data: extend to lowest point
             var yMin = minValue - padding
-            var yMax = maxValue + padding
+            let yMax = maxValue + padding
 
             // If all data is positive, start from zero
             if minValue >= 0 {

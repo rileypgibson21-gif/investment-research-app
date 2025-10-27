@@ -10,7 +10,6 @@ import Foundation
 import SwiftData
 
 @Model
-@MainActor
 class ResearchItem {
     var symbol: String
     var name: String
