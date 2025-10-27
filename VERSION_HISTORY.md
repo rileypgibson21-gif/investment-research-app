@@ -13,15 +13,22 @@ I'll create a git commit, tag it with a version number, and push to GitHub.
 
 ## Versions
 
-### v1.0.0 - Initial Setup (Coming soon)
+### v1.0.0 - Initial Working Version (2025-10-26)
+**✅ Saved to GitHub**
+
 First working version with:
-- Revenue charts showing 40 quarters (no scrolling)
-- TTM revenue charts showing 37 periods (no scrolling)
-- Skinnier bars with tighter spacing
-- Cloudflare Worker backend deployed
-- Marketstack API integration
-- SEC API for company financials
-- All compiler errors fixed
+- ✅ Revenue charts showing 40 quarters (no scrolling)
+- ✅ TTM revenue charts showing 37 periods (no scrolling)
+- ✅ Skinnier bars with tighter spacing (3pt)
+- ✅ Dynamic bar width based on screen size
+- ✅ Quarterly and TTM earnings charts
+- ✅ YoY growth charts for revenue and earnings
+- ✅ Cloudflare Worker backend deployed
+- ✅ Marketstack API integration
+- ✅ SEC API for company financials
+- ✅ All compiler errors fixed
+
+**GitHub:** [View on GitHub](https://github.com/rileypgibson21-gif/investment-research-app/releases/tag/v1.0.0)
 
 ---
 
