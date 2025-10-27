@@ -3,49 +3,12 @@ import SwiftData
 
 // MARK: - API Constants
 private enum APIConstants {
-    static let cloudflareBaseURL = "https://my-stock-api.stock-research-api.workers.dev"
-    static let yahooFinanceBaseURL = "https://query1.finance.yahoo.com/v8/finance/chart"
+    static let cloudflareBaseURL = "https://stock-api-v2.stock-research-api.workers.dev"
 }
 
 // MARK: - Stock API Service (Using Your Cloudflare API)
 class StockAPIService {
-    // Your API endpoint
     private let apiBaseURL = APIConstants.cloudflareBaseURL
-
-    // For real-time pricing, we'll use Yahoo Finance (free)
-    private let yahooBaseURL = APIConstants.yahooFinanceBaseURL
-    
-    // MARK: - Stock Quote (Yahoo Finance for real-time data)
-    func fetchStockQuote(symbol: String) async throws -> StockQuote {
-        let urlString = "\(yahooBaseURL)/\(symbol.uppercased())?interval=1d&range=1d"
-        guard let url = URL(string: urlString) else {
-            throw APIError.invalidURL
-        }
-        
-        let (data, _) = try await URLSession.shared.data(from: url)
-        let response = try JSONDecoder().decode(YahooChartResponse.self, from: data)
-        
-        guard let result = response.chart.result.first,
-              let quote = result.indicators.quote.first,
-              let meta = result.meta else {
-            throw APIError.noData
-        }
-        
-        let currentPrice = meta.regularMarketPrice
-        let previousClose = meta.chartPreviousClose
-        let change = currentPrice - previousClose
-        let changePercent = (change / previousClose) * 100
-        
-        return StockQuote(
-            currentPrice: currentPrice,
-            change: change,
-            changePercent: changePercent,
-            high: quote.high.compactMap { $0 }.last ?? currentPrice,
-            low: quote.low.compactMap { $0 }.last ?? currentPrice,
-            open: quote.open.compactMap { $0 }.first ?? currentPrice,
-            previousClose: previousClose
-        )
-    }
     
     // MARK: - Company Profile (From Your API)
     func searchStock(symbol: String) async throws -> StockProfile {
@@ -128,7 +91,7 @@ class StockAPIService {
     }
 
     // MARK: - Earnings Data (From Your API)
-    func fetchEarnings(symbol: String, freq: String = "quarterly") async throws -> [EarningsDataPoint] {
+    func fetchEarnings(symbol: String) async throws -> [EarningsDataPoint] {
         let urlString = "\(apiBaseURL)/api/earnings/\(symbol.uppercased())"
         guard let url = URL(string: urlString) else {
             throw APIError.invalidURL
@@ -191,41 +154,6 @@ class StockAPIService {
         }
     }
 
-    // MARK: - Company Metrics (Yahoo Finance)
-    func fetchCompanyMetrics(symbol: String) async throws -> CompanyMetrics {
-        let urlString = "\(yahooBaseURL)/\(symbol.uppercased())?interval=1d&range=1y"
-        guard let url = URL(string: urlString) else {
-            throw APIError.invalidURL
-        }
-        
-        var metrics = CompanyMetrics(
-            week52High: nil,
-            week52Low: nil,
-            marketCap: nil,
-            peRatio: nil,
-            beta: nil,
-            dividendYield: nil
-        )
-        
-        do {
-            let (data, _) = try await URLSession.shared.data(from: url)
-            let response = try JSONDecoder().decode(YahooChartResponse.self, from: data)
-            
-            if let result = response.chart.result.first,
-               let quote = result.indicators.quote.first {
-                let allHighs = quote.high.compactMap { $0 }
-                let allLows = quote.low.compactMap { $0 }
-                
-                metrics.week52High = allHighs.max()
-                metrics.week52Low = allLows.min()
-            }
-        } catch {
-            print("Warning: Could not fetch 52-week range: \(error)")
-        }
-        
-        return metrics
-    }
-    
 }
 
 // MARK: - Combined Revenue Charts View (Quarterly + TTM + YoY Growth)
@@ -415,11 +343,10 @@ struct TTMRevenueChartView: View {
     @State private var revenueData: [RevenueDataPoint] = []
     @State private var isLoading = false
     @State private var selectedBar: UUID?
-    @State private var scrollViewProxy: ScrollViewProxy?
     @State private var errorMessage: String?
-    
+
     var displayData: [RevenueDataPoint] {
-        // Reverse the order so oldest is first (left side) - show 13 TTM periods
+        // Reverse the order so oldest is first (left side) - show all TTM periods
         Array(revenueData.prefix(ChartConstants.ttmDataLimit).reversed())
     }
 
@@ -469,115 +396,112 @@ struct TTMRevenueChartView: View {
                                 .font(.headline)
                                 .frame(maxWidth: .infinity, alignment: .center)
                             
-                            HStack(alignment: .center, spacing: 8) {
-                                // Fixed Y-axis on the left
-                                VStack(alignment: .trailing, spacing: 0) {
-                                    ForEach(Array(getYAxisLabels().enumerated()), id: \.offset) { index, value in
-                                        Text(formatYAxisValue(value))
-                                            .font(.caption2)
-                                            .foregroundStyle(.secondary)
-                                        
-                                        if index < getYAxisLabels().count - 1 {
-                                            Spacer()
+                            GeometryReader { geometry in
+                                let availableWidth = geometry.size.width - ChartConstants.yAxisWidth - 32
+                                let barCount = CGFloat(displayData.count)
+                                let dynamicBarWidth = max((availableWidth - (barCount - 1) * ChartConstants.barSpacing) / barCount, 4)
+
+                                HStack(alignment: .center, spacing: 8) {
+                                    // Fixed Y-axis on the left
+                                    VStack(alignment: .trailing, spacing: 0) {
+                                        ForEach(Array(getYAxisLabels().enumerated()), id: \.offset) { index, value in
+                                            Text(formatYAxisValue(value))
+                                                .font(.caption2)
+                                                .foregroundStyle(.secondary)
+
+                                            if index < getYAxisLabels().count - 1 {
+                                                Spacer()
+                                            }
                                         }
                                     }
-                                }
-                                .frame(width: ChartConstants.yAxisWidth, height: ChartConstants.chartHeight)
-                                
-                                // Scrollable chart area
-                                ScrollView(.horizontal, showsIndicators: false) {
-                                    ScrollViewReader { proxy in
-                                        VStack(spacing: 0) {
-                                            ZStack(alignment: .bottom) {
-                                                VStack(spacing: 0) {
-                                                    ForEach(0..<5) { index in
-                                                        Divider()
-                                                            .background(Color.gray.opacity(0.2))
-                                                        if index < 4 {
-                                                            Spacer()
-                                                        }
+                                    .frame(width: ChartConstants.yAxisWidth, height: ChartConstants.chartHeight)
+
+                                    // Chart area - no scrolling, all bars visible
+                                    VStack(spacing: 0) {
+                                        ZStack(alignment: .bottom) {
+                                            VStack(spacing: 0) {
+                                                ForEach(0..<5) { index in
+                                                    Divider()
+                                                        .background(Color.gray.opacity(0.2))
+                                                    if index < 4 {
+                                                        Spacer()
                                                     }
                                                 }
-                                                .frame(height: ChartConstants.chartHeight)
-                                                
-                                                HStack(alignment: .bottom, spacing: 8) {
-                                                    ForEach(displayData) { point in
-                                                        VStack(spacing: 4) {
-                                                            if selectedBar == point.id {
-                                                                VStack(spacing: 2) {
-                                                                    Text(formatDate(point.period))
-                                                                        .font(.caption2)
-                                                                        .fontWeight(.bold)
-                                                                    Text(formatDetailedValue(point.revenue))
-                                                                        .font(.caption2)
-                                                                        .fontWeight(.semibold)
-                                                                    #if DEBUG
-                                                                    Text(point.period)
-                                                                        .font(.system(size: 8))
-                                                                        .opacity(0.7)
-                                                                    #endif
-                                                                }
-                                                                .foregroundStyle(.white)
-                                                                .padding(.horizontal, 8)
-                                                                .padding(.vertical, 4)
-                                                                .background(
-                                                                    RoundedRectangle(cornerRadius: 6)
-                                                                        .fill(Color(red: 1.0, green: 0.0, blue: 1.0))
-                                                                )
-                                                                .fixedSize()
-                                                                .transition(.opacity.combined(with: .scale))
-                                                            } else {
-                                                                // Empty spacer to maintain consistent height
-                                                                Color.clear
-                                                                    .frame(height: 50)
+                                            }
+                                            .frame(height: ChartConstants.chartHeight)
+
+                                            HStack(alignment: .bottom, spacing: ChartConstants.barSpacing) {
+                                                ForEach(Array(displayData.enumerated()), id: \.element.id) { index, point in
+                                                    VStack(spacing: 4) {
+                                                        if selectedBar == point.id {
+                                                            VStack(spacing: 2) {
+                                                                Text(formatDate(point.period))
+                                                                    .font(.caption2)
+                                                                    .fontWeight(.bold)
+                                                                Text(formatDetailedValue(point.revenue))
+                                                                    .font(.caption2)
+                                                                    .fontWeight(.semibold)
+                                                                #if DEBUG
+                                                                Text(point.period)
+                                                                    .font(.system(size: 8))
+                                                                    .opacity(0.7)
+                                                                #endif
                                                             }
+                                                            .foregroundStyle(.white)
+                                                            .padding(.horizontal, 8)
+                                                            .padding(.vertical, 4)
+                                                            .background(
+                                                                RoundedRectangle(cornerRadius: 6)
+                                                                    .fill(Color(red: 1.0, green: 0.0, blue: 1.0))
+                                                            )
+                                                            .fixedSize()
+                                                            .offset(x: index < 3 ? 20 : (index >= displayData.count - 3 ? -20 : 0))
+                                                            .transition(.opacity.combined(with: .scale))
+                                                        } else {
+                                                            // Empty spacer to maintain consistent height
+                                                            Color.clear
+                                                                .frame(height: 50)
+                                                        }
 
-                                                            Spacer(minLength: 0)
+                                                        Spacer(minLength: 0)
 
-                                                            RoundedRectangle(cornerRadius: 4)
-                                                                .fill(selectedBar == point.id ? Color(red: 1.0, green: 0.0, blue: 1.0).opacity(0.8) : Color(red: 1.0, green: 0.0, blue: 1.0))
-                                                                .frame(width: ChartConstants.barWidth, height: barHeight(for: point.revenue, in: ChartConstants.barChartHeight))
-                                                                .onTapGesture {
-                                                                    withAnimation(.easeInOut(duration: 0.2)) {
-                                                                        if selectedBar == point.id {
-                                                                            selectedBar = nil
-                                                                        } else {
-                                                                            selectedBar = point.id
-                                                                        }
+                                                        RoundedRectangle(cornerRadius: 4)
+                                                            .fill(selectedBar == point.id ? Color(red: 1.0, green: 0.0, blue: 1.0).opacity(0.8) : Color(red: 1.0, green: 0.0, blue: 1.0))
+                                                            .frame(width: dynamicBarWidth, height: barHeight(for: point.revenue, in: ChartConstants.barChartHeight))
+                                                            .onTapGesture {
+                                                                withAnimation(.easeInOut(duration: 0.2)) {
+                                                                    if selectedBar == point.id {
+                                                                        selectedBar = nil
+                                                                    } else {
+                                                                        selectedBar = point.id
                                                                     }
                                                                 }
-                                                        }
-                                                        .frame(width: 40, height: 290, alignment: .bottom)
-                                                        .id(point.id)
+                                                            }
                                                     }
-                                                }
-                                                .padding(.horizontal, 40)
-                                            }
-                                            
-                                            // X-axis labels
-                                            HStack(alignment: .top, spacing: 8) {
-                                                ForEach(displayData) { point in
-                                                    Text(formatDate(point.period))
-                                                        .font(.caption2)
-                                                        .foregroundStyle(.secondary)
-                                                        .frame(width: 40)
+                                                    .frame(width: dynamicBarWidth, height: 290, alignment: .bottom)
+                                                    .id(point.id)
                                                 }
                                             }
-                                            .padding(.top, 4)
-                                            .padding(.horizontal, 40)
+                                            .padding(.horizontal, 8)
                                         }
-                                        .onAppear {
-                                            // Scroll to the furthest right (most recent quarter)
-                                            if let lastQuarter = displayData.last {
-                                                Task { @MainActor in
-                                                    try? await Task.sleep(nanoseconds: UInt64(ChartConstants.scrollDelay * 1_000_000_000))
-                                                    proxy.scrollTo(lastQuarter.id, anchor: .trailing)
-                                                }
+
+                                        // X-axis labels - show every 4th to avoid overlap
+                                        HStack(alignment: .top, spacing: ChartConstants.barSpacing) {
+                                            ForEach(Array(displayData.enumerated()), id: \.element.id) { index, point in
+                                                let shouldShowLabel = index % 4 == 0 || index == displayData.count - 1
+
+                                                Text(shouldShowLabel ? formatDate(point.period) : "")
+                                                    .font(.system(size: 9))
+                                                    .foregroundStyle(.secondary)
+                                                    .frame(width: dynamicBarWidth)
                                             }
                                         }
+                                        .padding(.top, 4)
+                                        .padding(.horizontal, 8)
                                     }
                                 }
                             }
+                            .frame(height: 340)
                         }
                         .padding()
                         .background(Color(uiColor: .systemBackground))
@@ -690,31 +614,23 @@ struct YoYGrowthChartView: View {
         let minGrowth = allGrowth.min() ?? 0
         let maxGrowth = allGrowth.max() ?? 10
 
-        // Determine if we have positive only, negative only, or mixed
-        if minGrowth >= 0 {
-            // All positive - show from 0 to max
-            return (0, ChartUtilities.roundToNiceNumber(maxGrowth * 1.05))
-        } else if maxGrowth <= 0 {
-            // All negative - show from min to 0
-            return (ChartUtilities.roundToNiceNumber(minGrowth * 1.05), 0)
-        } else {
-            // Mixed - show symmetric range centered at 0
-            let maxAbs = max(abs(minGrowth), abs(maxGrowth))
-            let range = ChartUtilities.roundToNiceNumber(maxAbs * 1.05)
-            return (-range, range)
-        }
+        // Always show symmetric range centered at 0
+        let maxAbs = max(abs(minGrowth), abs(maxGrowth))
+        let range = max(ChartUtilities.roundToNiceNumber(maxAbs * 1.05), 10.0)
+        return (-range, range)
     }
 
     private func getYAxisLabels() -> [Double] {
         let range = growthRange
         let interval = (range.max - range.min) / 4
+        guard interval > 0 else { return [10, 5, 0, -5, -10] } // Default labels if no valid range
         var labels: [Double] = []
         for i in 0...4 {
             labels.append(range.max - (interval * Double(i)))
         }
         return labels
     }
-    
+
     var body: some View {
         Group {
             if isLoading {
@@ -744,7 +660,7 @@ struct YoYGrowthChartView: View {
                             Text("Year-over-Year Growth")
                                 .font(.headline)
                                 .frame(maxWidth: .infinity, alignment: .center)
-                            
+
                             HStack(alignment: .center, spacing: 8) {
                                 // Fixed Y-axis on the left
                                 VStack(alignment: .trailing, spacing: 0) {
@@ -752,24 +668,35 @@ struct YoYGrowthChartView: View {
                                         Text(formatYAxisValue(value))
                                             .font(.caption2)
                                             .foregroundStyle(.secondary)
-                                        
+
                                         if index < getYAxisLabels().count - 1 {
                                             Spacer()
                                         }
                                     }
                                 }
                                 .frame(width: ChartConstants.yAxisWidth, height: ChartConstants.chartHeight)
-                                
+
                                 // Scrollable chart area
                                 ScrollView(.horizontal, showsIndicators: false) {
                                     ScrollViewReader { proxy in
                                         VStack(spacing: 0) {
-                                            ZStack(alignment: .top) {
-                                                // Grid lines
+                                            // Space for tooltips above the chart
+                                            Spacer()
+                                                .frame(height: 60)
+
+                                            ZStack(alignment: .center) {
+                                                // Grid lines - center alignment for proper zero line
                                                 VStack(spacing: 0) {
                                                     ForEach(0..<5) { index in
-                                                        Divider()
-                                                            .background(Color.gray.opacity(index == Int(4 * zeroPosition()) ? 0.4 : 0.2))
+                                                        if index == 2 {
+                                                            // Prominent zero line at exact center
+                                                            Rectangle()
+                                                                .fill(Color.primary.opacity(0.8))
+                                                                .frame(height: 2)
+                                                        } else {
+                                                            Divider()
+                                                                .background(Color.gray.opacity(0.2))
+                                                        }
                                                         if index < 4 {
                                                             Spacer()
                                                         }
@@ -777,10 +704,37 @@ struct YoYGrowthChartView: View {
                                                 }
                                                 .frame(height: ChartConstants.chartHeight)
 
-                                                HStack(alignment: .top, spacing: 8) {
-                                                    ForEach(displayData) { point in
-                                                        VStack(spacing: 4) {
-                                                            // Tooltip at top with space reservation
+                                                HStack(alignment: .center, spacing: 8) {
+                                                    ForEach(Array(displayData.enumerated()), id: \.element.id) { index, point in
+                                                        // Bar area - split into top/bottom for perfect zero alignment
+                                                        VStack(spacing: 0) {
+                                                            // Top half - for positive values (bars grow upward from zero)
+                                                            ZStack(alignment: .bottom) {
+                                                                Color.clear
+                                                                if point.growthPercent >= 0 {
+                                                                    let barHeightValue = barHeight(for: point.growthPercent, in: ChartConstants.chartHeight)
+                                                                    RoundedRectangle(cornerRadius: 4)
+                                                                        .fill(selectedBar == point.id ? Color.green.opacity(0.8) : Color.green)
+                                                                        .frame(width: ChartConstants.barWidth, height: max(barHeightValue, 2))
+                                                                }
+                                                            }
+                                                            .frame(width: 40, height: ChartConstants.chartHeight * 0.5)
+
+                                                            // Bottom half - for negative values (bars grow downward from zero)
+                                                            ZStack(alignment: .top) {
+                                                                Color.clear
+                                                                if point.growthPercent < 0 {
+                                                                    let barHeightValue = barHeight(for: point.growthPercent, in: ChartConstants.chartHeight)
+                                                                    RoundedRectangle(cornerRadius: 4)
+                                                                        .fill(selectedBar == point.id ? Color.red.opacity(0.8) : Color.red)
+                                                                        .frame(width: ChartConstants.barWidth, height: max(barHeightValue, 2))
+                                                                }
+                                                            }
+                                                            .frame(width: 40, height: ChartConstants.chartHeight * 0.5)
+                                                        }
+                                                        .frame(width: 40, height: ChartConstants.chartHeight)
+                                                        .overlay(alignment: .top) {
+                                                            // Tooltip positioned above the bar area
                                                             if selectedBar == point.id {
                                                                 VStack(spacing: 2) {
                                                                     Text(formatDate(point.period))
@@ -803,38 +757,10 @@ struct YoYGrowthChartView: View {
                                                                         .fill(point.growthPercent >= 0 ? Color.green : Color.red)
                                                                 )
                                                                 .fixedSize()
+                                                                .offset(x: index == 0 ? 20 : (index == displayData.count - 1 ? -20 : 0), y: -55)
                                                                 .transition(.opacity.combined(with: .scale))
-                                                            } else {
-                                                                // Empty spacer to maintain consistent height
-                                                                Color.clear
-                                                                    .frame(height: 50)
                                                             }
-
-                                                            // Bar area
-                                                            GeometryReader { geometry in
-                                                                let totalHeight = geometry.size.height
-                                                                let zeroY = totalHeight * zeroPosition()
-                                                                let barHeightValue = barHeight(for: point.growthPercent, in: totalHeight)
-
-                                                                ZStack(alignment: .top) {
-                                                                    if point.growthPercent >= 0 {
-                                                                        // Positive bar - grows upward from zero line
-                                                                        RoundedRectangle(cornerRadius: 4)
-                                                                            .fill(selectedBar == point.id ? Color.green.opacity(0.8) : Color.green)
-                                                                            .frame(width: ChartConstants.barWidth, height: barHeightValue)
-                                                                            .offset(y: zeroY - barHeightValue)
-                                                                    } else {
-                                                                        // Negative bar - grows downward from zero line
-                                                                        RoundedRectangle(cornerRadius: 4)
-                                                                            .fill(selectedBar == point.id ? Color.red.opacity(0.8) : Color.red)
-                                                                            .frame(width: ChartConstants.barWidth, height: barHeightValue)
-                                                                            .offset(y: zeroY)
-                                                                    }
-                                                                }
-                                                            }
-                                                            .frame(width: 40, height: ChartConstants.chartHeight)
                                                         }
-                                                        .frame(width: 40, height: 290)
                                                         .contentShape(Rectangle())
                                                         .onTapGesture {
                                                             withAnimation(.easeInOut(duration: 0.2)) {
@@ -890,7 +816,7 @@ struct YoYGrowthChartView: View {
             }
         }
     }
-    
+
     private func loadRevenue() {
         isLoading = true
         
@@ -913,21 +839,17 @@ struct YoYGrowthChartView: View {
     
     private func barHeight(for value: Double, in totalHeight: CGFloat) -> CGFloat {
         let range = growthRange
-        let totalRange = range.max - range.min
-        guard totalRange > 0 else { return 4 }
+        guard range.max > 0 else { return 4 }
 
-        // Calculate what percentage of the range this value represents
-        let normalized = abs(value) / totalRange
-        return totalHeight * normalized
+        // Since zero is at 50% of the chart, bars grow from the middle
+        // Calculate as proportion of the max value, using half the chart height
+        let normalized = abs(value) / range.max
+        return (totalHeight * 0.5) * normalized
     }
 
     private func zeroPosition() -> CGFloat {
-        let range = growthRange
-        let totalRange = range.max - range.min
-        guard totalRange > 0 else { return 0.5 }
-
-        // Calculate where 0 should be positioned (as a percentage from top)
-        return CGFloat(range.max / totalRange)
+        // Since growthRange is always symmetric (-X to +X), zero is always at 50%
+        return 0.5
     }
     
     private func formatDate(_ dateString: String) -> String {
@@ -947,52 +869,958 @@ struct YoYGrowthChartView: View {
     }
 }
 
-// MARK: - Yahoo Finance Data Models
-struct YahooChartResponse: Codable {
-    let chart: YahooChart
-}
-
-struct YahooChart: Codable {
-    let result: [YahooResult]
-    let error: String?
-}
-
-struct YahooResult: Codable {
-    let meta: YahooMeta?
-    let timestamp: [Int]?
-    let indicators: YahooIndicators
-}
-
-struct YahooMeta: Codable {
-    let currency: String
+// MARK: - Quarterly Earnings Chart View
+struct EarningsChartView: View {
     let symbol: String
-    let regularMarketPrice: Double
-    let chartPreviousClose: Double
-    let previousClose: Double?
+    let apiService: StockAPIService
+    var onDataLoaded: (([EarningsDataPoint]) -> Void)? = nil
+
+    @State private var earningsData: [EarningsDataPoint] = []
+    @State private var isLoading = false
+    @State private var selectedBar: UUID?
+    @State private var scrollViewProxy: ScrollViewProxy?
+
+    var displayData: [EarningsDataPoint] {
+        // Reverse the order so oldest is first (left side) - show 16 quarters (4 years)
+        Array(earningsData.prefix(ChartConstants.quarterlyDataLimit).reversed())
+    }
+
+    var maxEarnings: Double {
+        let actualMax = displayData.map { $0.earnings }.max() ?? 0
+        return ChartUtilities.roundToNiceNumber(actualMax * 1.05)
+    }
+
+    private func getYAxisLabels() -> [Double] {
+        ChartUtilities.generateYAxisLabels(maxValue: maxEarnings)
+    }
+
+    var body: some View {
+        Group {
+            if isLoading {
+                VStack {
+                    Spacer()
+                    ProgressView()
+                    Spacer()
+                }
+                .frame(height: 400)
+            } else if earningsData.isEmpty {
+                VStack(spacing: 20) {
+                    Spacer()
+                    Image(systemName: "chart.bar.xaxis")
+                        .font(.system(size: 60))
+                        .foregroundStyle(.gray)
+                    Text("No earnings data available")
+                        .foregroundStyle(.secondary)
+                    Button("Retry") {
+                        loadEarnings()
+                    }
+                    Spacer()
+                }
+                .frame(height: 400)
+            } else {
+                VStack(spacing: 20) {
+                    // Chart with title
+                    VStack(alignment: .leading, spacing: 16) {
+                        Text("Quarterly Earnings")
+                            .font(.headline)
+                            .frame(maxWidth: .infinity, alignment: .center)
+
+                        HStack(alignment: .center, spacing: 8) {
+                            // Fixed Y-axis on the left
+                            VStack(alignment: .trailing, spacing: 0) {
+                                ForEach(Array(getYAxisLabels().enumerated()), id: \.offset) { index, value in
+                                    Text(formatYAxisValue(value))
+                                        .font(.caption2)
+                                        .foregroundStyle(.secondary)
+
+                                    if index < getYAxisLabels().count - 1 {
+                                        Spacer()
+                                    }
+                                }
+                            }
+                            .frame(width: ChartConstants.yAxisWidth, height: ChartConstants.chartHeight)
+
+                            // Scrollable chart area
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                ScrollViewReader { proxy in
+                                    VStack(spacing: 0) {
+                                        ZStack(alignment: .bottom) {
+                                            VStack(spacing: 0) {
+                                                ForEach(0..<5) { index in
+                                                    Divider()
+                                                        .background(Color.gray.opacity(0.2))
+                                                    if index < 4 {
+                                                        Spacer()
+                                                    }
+                                                }
+                                            }
+                                            .frame(height: ChartConstants.chartHeight)
+
+                                            HStack(alignment: .bottom, spacing: 8) {
+                                                ForEach(Array(displayData.enumerated()), id: \.element.id) { index, point in
+                                                    VStack(spacing: 4) {
+                                                        if selectedBar == point.id {
+                                                            VStack(spacing: 2) {
+                                                                Text(formatDate(point.period))
+                                                                    .font(.caption2)
+                                                                    .fontWeight(.bold)
+                                                                Text(formatDetailedValue(point.earnings))
+                                                                    .font(.caption2)
+                                                                    .fontWeight(.semibold)
+                                                                #if DEBUG
+                                                                Text(point.period)
+                                                                    .font(.system(size: 8))
+                                                                    .opacity(0.7)
+                                                                #endif
+                                                            }
+                                                            .foregroundStyle(.white)
+                                                            .padding(.horizontal, 8)
+                                                            .padding(.vertical, 4)
+                                                            .background(
+                                                                RoundedRectangle(cornerRadius: 6)
+                                                                    .fill(Color.green)
+                                                            )
+                                                            .fixedSize()
+                                                            .offset(x: index == 0 ? 20 : (index == displayData.count - 1 ? -20 : 0))
+                                                            .transition(.opacity.combined(with: .scale))
+                                                        } else {
+                                                            // Empty spacer to maintain consistent height
+                                                            Color.clear
+                                                                .frame(height: 50)
+                                                        }
+
+                                                        Spacer(minLength: 0)
+
+                                                        RoundedRectangle(cornerRadius: 4)
+                                                            .fill(selectedBar == point.id ? Color.green.opacity(0.8) : Color.green)
+                                                            .frame(width: ChartConstants.barWidth, height: barHeight(for: point.earnings, in: ChartConstants.barChartHeight))
+                                                            .onTapGesture {
+                                                                withAnimation(.easeInOut(duration: 0.2)) {
+                                                                    if selectedBar == point.id {
+                                                                        selectedBar = nil
+                                                                    } else {
+                                                                        selectedBar = point.id
+                                                                    }
+                                                                }
+                                                            }
+                                                    }
+                                                    .frame(width: 40, height: 290, alignment: .bottom)
+                                                    .id(point.id)
+                                                }
+                                            }
+                                            .padding(.horizontal, 40)
+                                        }
+
+                                        // X-axis labels
+                                        HStack(alignment: .top, spacing: 8) {
+                                            ForEach(displayData) { point in
+                                                Text(formatDate(point.period))
+                                                    .font(.caption2)
+                                                    .foregroundStyle(.secondary)
+                                                    .frame(width: 40)
+                                            }
+                                        }
+                                        .padding(.top, 4)
+                                        .padding(.horizontal, 40)
+                                    }
+                                    .onAppear {
+                                        // Scroll to the rightmost position (most recent quarter)
+                                        if let lastQuarter = displayData.last {
+                                            Task { @MainActor in
+                                                try? await Task.sleep(nanoseconds: UInt64(ChartConstants.scrollDelay * 1_000_000_000))
+                                                proxy.scrollTo(lastQuarter.id, anchor: .trailing)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    .padding()
+                    .background(Color(uiColor: .systemBackground))
+                    .cornerRadius(12)
+                    .padding()
+                }
+            }
+        }
+        .onAppear {
+            if earningsData.isEmpty {
+                loadEarnings()
+            }
+        }
+    }
+
+    private func loadEarnings() {
+        isLoading = true
+
+        Task {
+            do {
+                let data = try await apiService.fetchEarnings(symbol: symbol)
+                await MainActor.run {
+                    earningsData = data
+                    isLoading = false
+                    onDataLoaded?(data)
+                }
+            } catch {
+                await MainActor.run {
+                    earningsData = []
+                    isLoading = false
+                    onDataLoaded?([])
+                }
+            }
+        }
+    }
+
+    private func barHeight(for value: Double, in maxHeight: CGFloat) -> CGFloat {
+        guard maxEarnings > 0 else { return 4 }
+        let normalized = value / maxEarnings
+        return maxHeight * normalized
+    }
+
+    private func formatDate(_ dateString: String) -> String {
+        ChartUtilities.formatQuarterDate(dateString)
+    }
+
+    private func formatDetailedValue(_ value: Double) -> String {
+        ChartUtilities.formatCurrencyValue(value)
+    }
+
+    private func formatYAxisValue(_ value: Double) -> String {
+        ChartUtilities.formatYAxisValue(value)
+    }
 }
 
-struct YahooIndicators: Codable {
-    let quote: [YahooQuote]
+// MARK: - TTM Earnings Chart View
+struct TTMEarningsChartView: View {
+    let symbol: String
+    let apiService: StockAPIService
+    var onDataLoaded: (([EarningsDataPoint]) -> Void)? = nil
+
+    @State private var earningsData: [EarningsDataPoint] = []
+    @State private var isLoading = false
+    @State private var selectedBar: UUID?
+    @State private var scrollViewProxy: ScrollViewProxy?
+    @State private var errorMessage: String?
+
+    var displayData: [EarningsDataPoint] {
+        // Reverse the order so oldest is first (left side) - show 13 TTM periods
+        Array(earningsData.prefix(ChartConstants.ttmDataLimit).reversed())
+    }
+
+    var maxEarnings: Double {
+        let actualMax = displayData.map { $0.earnings }.max() ?? 0
+        return ChartUtilities.roundToNiceNumber(actualMax * 1.05)
+    }
+
+    private func getYAxisLabels() -> [Double] {
+        ChartUtilities.generateYAxisLabels(maxValue: maxEarnings)
+    }
+
+    var body: some View {
+        Group {
+            if isLoading {
+                VStack {
+                    Spacer()
+                    ProgressView()
+                    Spacer()
+                }
+                .frame(height: 400)
+            } else if let error = errorMessage {
+                VStack(spacing: 20) {
+                    Spacer()
+                    Image(systemName: "exclamationmark.triangle")
+                        .font(.system(size: 60))
+                        .foregroundStyle(.red)
+                    if !error.isEmpty {
+                        Text(error)
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal)
+                    }
+                    Button("Retry") {
+                        loadEarnings()
+                    }
+                    Spacer()
+                }
+                .frame(height: 400)
+            } else if earningsData.isEmpty {
+                VStack(spacing: 20) {
+                    Spacer()
+                    Image(systemName: "chart.bar.xaxis")
+                        .font(.system(size: 60))
+                        .foregroundStyle(.gray)
+                    Text("No TTM earnings data available")
+                        .foregroundStyle(.secondary)
+                    Button("Retry") {
+                        loadEarnings()
+                    }
+                    Spacer()
+                }
+                .frame(height: 400)
+            } else {
+                VStack(spacing: 20) {
+                    // Chart with title
+                    VStack(alignment: .leading, spacing: 16) {
+                        Text("Trailing Twelve Months Earnings")
+                            .font(.headline)
+                            .frame(maxWidth: .infinity, alignment: .center)
+
+                        HStack(alignment: .center, spacing: 8) {
+                            // Fixed Y-axis on the left
+                            VStack(alignment: .trailing, spacing: 0) {
+                                ForEach(Array(getYAxisLabels().enumerated()), id: \.offset) { index, value in
+                                    Text(formatYAxisValue(value))
+                                        .font(.caption2)
+                                        .foregroundStyle(.secondary)
+
+                                    if index < getYAxisLabels().count - 1 {
+                                        Spacer()
+                                    }
+                                }
+                            }
+                            .frame(width: ChartConstants.yAxisWidth, height: ChartConstants.chartHeight)
+
+                            // Scrollable chart area
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                ScrollViewReader { proxy in
+                                    VStack(spacing: 0) {
+                                        ZStack(alignment: .bottom) {
+                                            VStack(spacing: 0) {
+                                                ForEach(0..<5) { index in
+                                                    Divider()
+                                                        .background(Color.gray.opacity(0.2))
+                                                    if index < 4 {
+                                                        Spacer()
+                                                    }
+                                                }
+                                            }
+                                            .frame(height: ChartConstants.chartHeight)
+
+                                            HStack(alignment: .bottom, spacing: 8) {
+                                                ForEach(Array(displayData.enumerated()), id: \.element.id) { index, point in
+                                                    VStack(spacing: 4) {
+                                                        if selectedBar == point.id {
+                                                            VStack(spacing: 2) {
+                                                                Text(formatDate(point.period))
+                                                                    .font(.caption2)
+                                                                    .fontWeight(.bold)
+                                                                Text(formatDetailedValue(point.earnings))
+                                                                    .font(.caption2)
+                                                                    .fontWeight(.semibold)
+                                                                #if DEBUG
+                                                                Text(point.period)
+                                                                    .font(.system(size: 8))
+                                                                    .opacity(0.7)
+                                                                #endif
+                                                            }
+                                                            .foregroundStyle(.white)
+                                                            .padding(.horizontal, 8)
+                                                            .padding(.vertical, 4)
+                                                            .background(
+                                                                RoundedRectangle(cornerRadius: 6)
+                                                                    .fill(Color.purple)
+                                                            )
+                                                            .fixedSize()
+                                                            .offset(x: index == 0 ? 20 : (index == displayData.count - 1 ? -20 : 0))
+                                                            .transition(.opacity.combined(with: .scale))
+                                                        } else {
+                                                            // Empty spacer to maintain consistent height
+                                                            Color.clear
+                                                                .frame(height: 50)
+                                                        }
+
+                                                        Spacer(minLength: 0)
+
+                                                        RoundedRectangle(cornerRadius: 4)
+                                                            .fill(selectedBar == point.id ? Color.purple.opacity(0.8) : Color.purple)
+                                                            .frame(width: ChartConstants.barWidth, height: barHeight(for: point.earnings, in: ChartConstants.barChartHeight))
+                                                            .onTapGesture {
+                                                                withAnimation(.easeInOut(duration: 0.2)) {
+                                                                    if selectedBar == point.id {
+                                                                        selectedBar = nil
+                                                                    } else {
+                                                                        selectedBar = point.id
+                                                                    }
+                                                                }
+                                                            }
+                                                    }
+                                                    .frame(width: 40, height: 290, alignment: .bottom)
+                                                    .id(point.id)
+                                                }
+                                            }
+                                            .padding(.horizontal, 40)
+                                        }
+
+                                        // X-axis labels
+                                        HStack(alignment: .top, spacing: 8) {
+                                            ForEach(displayData) { point in
+                                                Text(formatDate(point.period))
+                                                    .font(.caption2)
+                                                    .foregroundStyle(.secondary)
+                                                    .frame(width: 40)
+                                            }
+                                        }
+                                        .padding(.top, 4)
+                                        .padding(.horizontal, 40)
+                                    }
+                                    .onAppear {
+                                        // Scroll to the rightmost position (most recent period)
+                                        if let lastPeriod = displayData.last {
+                                            Task { @MainActor in
+                                                try? await Task.sleep(nanoseconds: UInt64(ChartConstants.scrollDelay * 1_000_000_000))
+                                                proxy.scrollTo(lastPeriod.id, anchor: .trailing)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    .padding()
+                    .background(Color(uiColor: .systemBackground))
+                    .cornerRadius(12)
+                    .padding()
+                }
+            }
+        }
+        .onAppear {
+            if earningsData.isEmpty {
+                loadEarnings()
+            }
+        }
+    }
+
+    private func loadEarnings() {
+        isLoading = true
+        errorMessage = nil
+
+        Task {
+            do {
+                let data = try await apiService.fetchTTMEarnings(symbol: symbol)
+                await MainActor.run {
+                    earningsData = data
+                    onDataLoaded?(data)
+                    isLoading = false
+                }
+            } catch {
+                await MainActor.run {
+                    earningsData = []
+                    errorMessage = "Failed to load TTM earnings data"
+                    onDataLoaded?([])
+                    isLoading = false
+                }
+            }
+        }
+    }
+
+    private func barHeight(for value: Double, in maxHeight: CGFloat) -> CGFloat {
+        guard maxEarnings > 0 else { return 4 }
+        let normalized = value / maxEarnings
+        return maxHeight * normalized
+    }
+
+    private func formatDate(_ dateString: String) -> String {
+        ChartUtilities.formatQuarterDate(dateString)
+    }
+
+    private func formatDetailedValue(_ value: Double) -> String {
+        ChartUtilities.formatCurrencyValue(value)
+    }
+
+    private func formatYAxisValue(_ value: Double) -> String {
+        ChartUtilities.formatYAxisValue(value)
+    }
 }
 
-struct YahooQuote: Codable {
-    let high: [Double?]
-    let low: [Double?]
-    let open: [Double?]
-    let close: [Double?]
-    let volume: [Int?]
+// MARK: - YoY Earnings Growth Chart View
+struct YoYEarningsGrowthChartView: View {
+    let symbol: String
+    let apiService: StockAPIService
+    var onDataLoaded: (([EarningsDataPoint]) -> Void)? = nil
+
+    @State private var earningsData: [EarningsDataPoint] = []
+    @State private var isLoading = false
+    @State private var selectedBar: String?
+
+    struct GrowthDataPoint: Identifiable {
+        let period: String
+        let growthPercent: Double
+        let currentEarnings: Double
+        let priorEarnings: Double
+        var id: String { period }
+    }
+
+    var growthData: [GrowthDataPoint] {
+        guard earningsData.count >= 5 else { return [] }
+
+        var growth: [GrowthDataPoint] = []
+        let sortedData = earningsData.sorted { $0.period < $1.period }
+
+        // Calculate YoY growth (comparing to 4 quarters ago)
+        for i in 4..<sortedData.count {
+            let current = sortedData[i]
+            let prior = sortedData[i - 4]
+
+            guard prior.earnings != 0 else { continue }
+
+            let growthPercent = ((current.earnings - prior.earnings) / prior.earnings) * 100
+
+            growth.append(GrowthDataPoint(
+                period: current.period,
+                growthPercent: growthPercent,
+                currentEarnings: current.earnings,
+                priorEarnings: prior.earnings
+            ))
+        }
+
+        return growth.reversed()
+    }
+
+    var displayData: [GrowthDataPoint] {
+        // Reverse the order so oldest is first (left side) - show 12 growth periods
+        Array(growthData.prefix(ChartConstants.growthDataLimit).reversed())
+    }
+
+    var growthRange: (min: Double, max: Double) {
+        let allGrowth = displayData.map { $0.growthPercent }
+        let minGrowth = allGrowth.min() ?? 0
+        let maxGrowth = allGrowth.max() ?? 10
+
+        // Always show symmetric range centered at 0
+        let maxAbs = max(abs(minGrowth), abs(maxGrowth))
+        let range = max(ChartUtilities.roundToNiceNumber(maxAbs * 1.05), 10.0)
+        return (-range, range)
+    }
+
+    private func getYAxisLabels() -> [Double] {
+        let range = growthRange
+        let interval = (range.max - range.min) / 4
+        guard interval > 0 else { return [10, 5, 0, -5, -10] }
+        var labels: [Double] = []
+        for i in 0...4 {
+            labels.append(range.max - (interval * Double(i)))
+        }
+        return labels
+    }
+
+    var body: some View {
+        Group {
+            if isLoading {
+                VStack {
+                    Spacer()
+                    ProgressView()
+                    Spacer()
+                }
+            } else if displayData.isEmpty {
+                VStack(spacing: 20) {
+                    Spacer()
+                    Image(systemName: "chart.bar.xaxis")
+                        .font(.system(size: 60))
+                        .foregroundStyle(.gray)
+                    Text("Insufficient data for YoY growth")
+                        .foregroundStyle(.secondary)
+                    Text("Need at least 5 quarters of data")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                    Spacer()
+                }
+            } else {
+                ScrollView {
+                    VStack(spacing: 20) {
+                        // Chart with title
+                        VStack(alignment: .leading, spacing: 16) {
+                            Text("Year-over-Year Earnings Growth")
+                                .font(.headline)
+                                .frame(maxWidth: .infinity, alignment: .center)
+
+                            HStack(alignment: .center, spacing: 8) {
+                                // Fixed Y-axis on the left
+                                VStack(alignment: .trailing, spacing: 0) {
+                                    ForEach(Array(getYAxisLabels().enumerated()), id: \.offset) { index, value in
+                                        Text(formatYAxisValue(value))
+                                            .font(.caption2)
+                                            .foregroundStyle(.secondary)
+
+                                        if index < getYAxisLabels().count - 1 {
+                                            Spacer()
+                                        }
+                                    }
+                                }
+                                .frame(width: ChartConstants.yAxisWidth, height: ChartConstants.chartHeight)
+
+                                // Scrollable chart area
+                                ScrollView(.horizontal, showsIndicators: false) {
+                                    ScrollViewReader { proxy in
+                                        VStack(spacing: 0) {
+                                            // Space for tooltips above the chart
+                                            Spacer()
+                                                .frame(height: 60)
+
+                                            ZStack(alignment: .center) {
+                                                // Grid lines - center alignment for proper zero line
+                                                VStack(spacing: 0) {
+                                                    ForEach(0..<5) { index in
+                                                        if index == 2 {
+                                                            // Prominent zero line at exact center
+                                                            Rectangle()
+                                                                .fill(Color.primary.opacity(0.8))
+                                                                .frame(height: 2)
+                                                        } else {
+                                                            Divider()
+                                                                .background(Color.gray.opacity(0.2))
+                                                        }
+                                                        if index < 4 {
+                                                            Spacer()
+                                                        }
+                                                    }
+                                                }
+                                                .frame(height: ChartConstants.chartHeight)
+
+                                                HStack(alignment: .center, spacing: 8) {
+                                                    ForEach(Array(displayData.enumerated()), id: \.element.id) { index, point in
+                                                        // Bar area - split into top/bottom for perfect zero alignment
+                                                        VStack(spacing: 0) {
+                                                            // Top half - for positive values (bars grow upward from zero)
+                                                            ZStack(alignment: .bottom) {
+                                                                Color.clear
+                                                                if point.growthPercent >= 0 {
+                                                                    let barHeightValue = barHeight(for: point.growthPercent, in: ChartConstants.chartHeight)
+                                                                    RoundedRectangle(cornerRadius: 4)
+                                                                        .fill(selectedBar == point.id ? Color.green.opacity(0.8) : Color.green)
+                                                                        .frame(width: ChartConstants.barWidth, height: max(barHeightValue, 2))
+                                                                }
+                                                            }
+                                                            .frame(width: 40, height: ChartConstants.chartHeight * 0.5)
+
+                                                            // Bottom half - for negative values (bars grow downward from zero)
+                                                            ZStack(alignment: .top) {
+                                                                Color.clear
+                                                                if point.growthPercent < 0 {
+                                                                    let barHeightValue = barHeight(for: point.growthPercent, in: ChartConstants.chartHeight)
+                                                                    RoundedRectangle(cornerRadius: 4)
+                                                                        .fill(selectedBar == point.id ? Color.red.opacity(0.8) : Color.red)
+                                                                        .frame(width: ChartConstants.barWidth, height: max(barHeightValue, 2))
+                                                                }
+                                                            }
+                                                            .frame(width: 40, height: ChartConstants.chartHeight * 0.5)
+                                                        }
+                                                        .frame(width: 40, height: ChartConstants.chartHeight)
+                                                        .overlay(alignment: .top) {
+                                                            // Tooltip positioned above the bar area
+                                                            if selectedBar == point.id {
+                                                                VStack(spacing: 2) {
+                                                                    Text(formatDate(point.period))
+                                                                        .font(.caption2)
+                                                                        .fontWeight(.bold)
+                                                                    Text(formatGrowthValue(point.growthPercent))
+                                                                        .font(.caption2)
+                                                                        .fontWeight(.semibold)
+                                                                    #if DEBUG
+                                                                    Text(point.period)
+                                                                        .font(.system(size: 8))
+                                                                        .opacity(0.7)
+                                                                    #endif
+                                                                }
+                                                                .foregroundStyle(.white)
+                                                                .padding(.horizontal, 8)
+                                                                .padding(.vertical, 4)
+                                                                .background(
+                                                                    RoundedRectangle(cornerRadius: 6)
+                                                                        .fill(point.growthPercent >= 0 ? Color.green : Color.red)
+                                                                )
+                                                                .fixedSize()
+                                                                .offset(x: index == 0 ? 20 : (index == displayData.count - 1 ? -20 : 0), y: -55)
+                                                                .transition(.opacity.combined(with: .scale))
+                                                            }
+                                                        }
+                                                        .contentShape(Rectangle())
+                                                        .onTapGesture {
+                                                            withAnimation(.easeInOut(duration: 0.2)) {
+                                                                if selectedBar == point.id {
+                                                                    selectedBar = nil
+                                                                } else {
+                                                                    selectedBar = point.id
+                                                                }
+                                                            }
+                                                        }
+                                                        .id(point.id)
+                                                    }
+                                                }
+                                                .padding(.horizontal, 40)
+                                            }
+
+                                            // X-axis labels
+                                            HStack(alignment: .top, spacing: 8) {
+                                                ForEach(displayData) { point in
+                                                    Text(formatDate(point.period))
+                                                        .font(.caption2)
+                                                        .foregroundStyle(.secondary)
+                                                        .frame(width: 40)
+                                                }
+                                            }
+                                            .padding(.top, 4)
+                                            .padding(.horizontal, 40)
+                                        }
+                                        .onAppear {
+                                            // Scroll to the rightmost position (most recent quarter)
+                                            if let lastQuarter = displayData.last {
+                                                Task { @MainActor in
+                                                    try? await Task.sleep(nanoseconds: UInt64(ChartConstants.scrollDelay * 1_000_000_000))
+                                                    proxy.scrollTo(lastQuarter.id, anchor: .trailing)
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        .padding()
+                        .background(Color(uiColor: .systemBackground))
+                        .cornerRadius(12)
+                        .padding()
+                    }
+                }
+            }
+        }
+        .onAppear {
+            if earningsData.isEmpty {
+                loadEarnings()
+            }
+        }
+    }
+
+    private func loadEarnings() {
+        isLoading = true
+
+        Task {
+            do {
+                let data = try await apiService.fetchEarnings(symbol: symbol)
+                await MainActor.run {
+                    earningsData = data
+                    onDataLoaded?(data)
+                    isLoading = false
+                }
+            } catch {
+                await MainActor.run {
+                    earningsData = []
+                    onDataLoaded?([])
+                    isLoading = false
+                }
+            }
+        }
+    }
+
+    private func barHeight(for value: Double, in totalHeight: CGFloat) -> CGFloat {
+        let range = growthRange
+        guard range.max > 0 else { return 4 }
+
+        // Since zero is at 50% of the chart, bars grow from the middle
+        // Calculate as proportion of the max value, using half the chart height
+        let normalized = abs(value) / range.max
+        return (totalHeight * 0.5) * normalized
+    }
+
+    private func zeroPosition() -> CGFloat {
+        // Since growthRange is always symmetric (-X to +X), zero is always at 50%
+        return 0.5
+    }
+
+    private func formatDate(_ dateString: String) -> String {
+        ChartUtilities.formatQuarterDate(dateString)
+    }
+
+    private func formatGrowthValue(_ value: Double) -> String {
+        ChartUtilities.formatPercentage(value)
+    }
+
+    private func formatDetailedValue(_ value: Double) -> String {
+        ChartUtilities.formatCurrencyValue(value)
+    }
+
+    private func formatYAxisValue(_ value: Double) -> String {
+        ChartUtilities.formatYAxisPercentage(value)
+    }
+}
+
+// MARK: - Combined Earnings Charts View (Quarterly + TTM + YoY Growth)
+struct EarningsChartsView: View {
+    let symbol: String
+    let apiService: StockAPIService
+
+    @State private var quarterlyData: [EarningsDataPoint] = []
+    @State private var ttmData: [EarningsDataPoint] = []
+    @State private var yoyData: [EarningsDataPoint] = []
+    @State private var isLoading = false
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 0) {
+                EarningsChartView(symbol: symbol, apiService: apiService, onDataLoaded: { data in
+                    quarterlyData = data
+                })
+
+                Divider()
+                    .padding(.vertical, 20)
+
+                TTMEarningsChartView(symbol: symbol, apiService: apiService, onDataLoaded: { data in
+                    ttmData = data
+                })
+
+                Divider()
+                    .padding(.vertical, 20)
+
+                YoYEarningsGrowthChartView(symbol: symbol, apiService: apiService, onDataLoaded: { data in
+                    yoyData = data
+                })
+
+                // Combined Earnings Details Table
+                if !quarterlyData.isEmpty || !ttmData.isEmpty {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Earnings Details")
+                            .font(.headline)
+                            .padding(.horizontal)
+
+                        HStack(spacing: 0) {
+                            // Fixed Quarter Column
+                            VStack(spacing: 0) {
+                                // Header
+                                Text("Quarter")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .frame(width: 80, alignment: .leading)
+                                    .padding(.vertical, 8)
+
+                                Divider()
+
+                                // Quarter labels
+                                ForEach(0..<min(max(quarterlyData.count, ttmData.count), 12), id: \.self) { index in
+                                    VStack(spacing: 0) {
+                                        if index < quarterlyData.count {
+                                            Text(formatDate(quarterlyData[index].period))
+                                                .font(.caption)
+                                                .fontWeight(.medium)
+                                                .lineLimit(1)
+                                                .minimumScaleFactor(0.8)
+                                                .frame(width: 80, alignment: .leading)
+                                                .padding(.vertical, 8)
+                                        } else {
+                                            Text("-")
+                                                .font(.caption)
+                                                .frame(width: 80, alignment: .leading)
+                                                .padding(.vertical, 8)
+                                        }
+
+                                        if index < min(max(quarterlyData.count, ttmData.count), 12) - 1 {
+                                            Divider()
+                                        }
+                                    }
+                                }
+                            }
+                            .padding(.leading, 16)
+
+                            // Scrollable Data Columns
+                            ScrollView(.horizontal, showsIndicators: true) {
+                                VStack(spacing: 0) {
+                                    // Header Row
+                                    HStack(spacing: 0) {
+                                        Text("Quarterly")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                            .frame(width: 120, alignment: .trailing)
+
+                                        Text("TTM")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                            .frame(width: 120, alignment: .trailing)
+
+                                        Text("YoY")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                            .frame(width: 80, alignment: .trailing)
+                                    }
+                                    .padding(.vertical, 8)
+                                    .padding(.trailing, 16)
+
+                                    Divider()
+
+                                    // Data Rows
+                                    ForEach(0..<min(max(quarterlyData.count, ttmData.count), 12), id: \.self) { index in
+                                        VStack(spacing: 0) {
+                                            HStack(spacing: 0) {
+                                                // Quarterly value
+                                                if index < quarterlyData.count {
+                                                    Text(formatValue(quarterlyData[index].earnings))
+                                                        .font(.caption)
+                                                        .fontWeight(.semibold)
+                                                        .foregroundStyle(quarterlyData[index].earnings >= 0 ? .blue : .red)
+                                                        .frame(width: 120, alignment: .trailing)
+                                                } else {
+                                                    Text("-")
+                                                        .font(.caption)
+                                                        .frame(width: 120, alignment: .trailing)
+                                                }
+
+                                                // TTM value
+                                                if index < ttmData.count {
+                                                    Text(formatValue(ttmData[index].earnings))
+                                                        .font(.caption)
+                                                        .fontWeight(.semibold)
+                                                        .foregroundStyle(ttmData[index].earnings >= 0 ? Color(red: 1.0, green: 0.0, blue: 1.0) : .red)
+                                                        .frame(width: 120, alignment: .trailing)
+                                                } else {
+                                                    Text("-")
+                                                        .font(.caption)
+                                                        .frame(width: 120, alignment: .trailing)
+                                                }
+
+                                                // YoY % value (compare to 4 quarters ago)
+                                                if index + 4 < quarterlyData.count,
+                                                   quarterlyData[index + 4].earnings != 0 {
+                                                    let current = quarterlyData[index].earnings
+                                                    let prior = quarterlyData[index + 4].earnings
+                                                    let yoy = ((current - prior) / prior) * 100
+                                                    Text(String(format: "%+.1f%%", yoy))
+                                                        .font(.caption)
+                                                        .fontWeight(.semibold)
+                                                        .foregroundStyle(yoy >= 0 ? .green : .red)
+                                                        .frame(width: 80, alignment: .trailing)
+                                                } else {
+                                                    Text("-")
+                                                        .font(.caption)
+                                                        .frame(width: 80, alignment: .trailing)
+                                                }
+                                            }
+                                            .padding(.vertical, 8)
+                                            .padding(.trailing, 16)
+
+                                            if index < min(max(quarterlyData.count, ttmData.count), 12) - 1 {
+                                                Divider()
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        .background(Color(UIColor.secondarySystemGroupedBackground))
+                        .cornerRadius(8)
+                        .padding(.horizontal, 16)
+                    }
+                    .padding(.top, 20)
+                    .padding(.bottom, 40)
+                }
+            }
+        }
+    }
+
+    private func formatDate(_ dateString: String) -> String {
+        ChartUtilities.formatQuarterDate(dateString)
+    }
+
+    private func formatValue(_ value: Double) -> String {
+        ChartUtilities.formatCurrencyValue(value)
+    }
 }
 
 // MARK: - App Data Models
-struct StockQuote {
-    let currentPrice: Double
-    let change: Double
-    let changePercent: Double
-    let high: Double
-    let low: Double
-    let open: Double
-    let previousClose: Double
-}
 
 struct StockProfile: Codable {
     let name: String
@@ -1004,7 +1832,7 @@ struct StockProfile: Codable {
     let currency: String?
     let exchange: String?
     let ipo: String?
-    let finnhubIndustry: String?
+    let industry: String?
     let weburl: String?
 }
 
@@ -1378,27 +2206,10 @@ struct WatchlistView: View {
     
     private func refreshAllPrices() {
         isRefreshing = true
-        let apiService = StockAPIService()
-        
-        Task {
-            for item in items {
-                do {
-                    let quote = try await apiService.fetchStockQuote(symbol: item.symbol)
-                    await MainActor.run {
-                        item.currentPrice = quote.currentPrice
-                        item.priceChange = quote.change
-                        item.priceChangePercent = quote.changePercent
-                        item.lastUpdated = Date()
-                    }
-                } catch {
-                    print("Failed to update \(item.symbol): \(error)")
-                }
-            }
-            
-            await MainActor.run {
-                isRefreshing = false
-            }
-        }
+        // Note: Real-time price updates require a data provider
+        // Finnhub has been removed as it's not legal for commercial use
+        // Consider alternative providers like Alpha Vantage, IEX Cloud, or Polygon.io
+        isRefreshing = false
     }
 }
 
@@ -1683,17 +2494,18 @@ struct AddStockView: View {
     private func searchStock() {
         isSearching = true
         searchError = nil
-        
+
         Task {
             do {
                 let profile = try await apiService.searchStock(symbol: symbol)
-                let quote = try await apiService.fetchStockQuote(symbol: symbol)
-                
+                // Note: Real-time quotes removed (Finnhub not legal for commercial use)
+                // Using default values for price fields
+
                 await MainActor.run {
                     name = profile.name
-                    currentPrice = quote.currentPrice
-                    priceChange = quote.change
-                    priceChangePercent = quote.changePercent
+                    currentPrice = 0.0
+                    priceChange = 0.0
+                    priceChangePercent = 0.0
                     isSearching = false
                 }
             } catch {
@@ -1726,55 +2538,46 @@ struct StockDetailView: View {
     @State private var editingNotes = false
     @State private var newTag = ""
     @State private var showingAddTag = false
-    @State private var selectedSection = "overview"
+    @State private var selectedTab = 0
 
     private let apiService = StockAPIService()
 
-    // Section IDs for scroll anchoring
-    private let sections = ["overview", "revenue", "notes"]
-
     var body: some View {
-        ScrollViewReader { proxy in
-            VStack(spacing: 0) {
-                // Sticky navigation header
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 12) {
-                        SectionPill(title: "Overview", isSelected: selectedSection == "overview") {
-                            withAnimation {
-                                selectedSection = "overview"
-                                proxy.scrollTo("overview", anchor: .top)
-                            }
-                        }
-
-                        SectionPill(title: "Revenue", isSelected: selectedSection == "revenue") {
-                            withAnimation {
-                                selectedSection = "revenue"
-                                proxy.scrollTo("revenue", anchor: .top)
-                            }
-                        }
-
-                        SectionPill(title: "Notes", isSelected: selectedSection == "notes") {
-                            withAnimation {
-                                selectedSection = "notes"
-                                proxy.scrollTo("notes", anchor: .top)
-                            }
-                        }
-                    }
-                    .padding(.horizontal)
+        VStack(spacing: 0) {
+            // Dropdown Menu
+            Menu {
+                Button(action: { selectedTab = 0 }) {
+                    Label("Overview", systemImage: selectedTab == 0 ? "checkmark" : "")
                 }
-                .padding(.vertical, 8)
-                .background(Color(uiColor: .systemBackground))
-                .overlay(
-                    Divider()
-                        .frame(maxWidth: .infinity, maxHeight: 1)
-                        .background(Color.gray.opacity(0.3)),
-                    alignment: .bottom
-                )
 
-                // Continuous scrolling content
-                ScrollView {
+                Button(action: { selectedTab = 1 }) {
+                    Label("Revenue", systemImage: selectedTab == 1 ? "checkmark" : "")
+                }
+
+                Button(action: { selectedTab = 2 }) {
+                    Label("Earnings", systemImage: selectedTab == 2 ? "checkmark" : "")
+                }
+            } label: {
+                HStack {
+                    Text(selectedTab == 0 ? "Overview" : selectedTab == 1 ? "Revenue" : "Earnings")
+                        .fontWeight(.semibold)
+                    Image(systemName: "chevron.down")
+                        .font(.caption)
+                }
+                .foregroundStyle(.primary)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .frame(maxWidth: .infinity)
+                .background(Color(uiColor: .secondarySystemBackground))
+                .cornerRadius(10)
+            }
+            .padding()
+
+            // Content based on selection
+            ScrollView {
+                if selectedTab == 0 {
+                    // Overview (includes notes)
                     VStack(spacing: 0) {
-                        // Overview Section
                         StockOverviewSection(
                             item: item,
                             isUpdating: $isUpdating,
@@ -1782,17 +2585,9 @@ struct StockDetailView: View {
                             apiService: apiService,
                             onUpdatePrice: updatePrice
                         )
-                        .id("overview")
-
-                        SectionDivider(title: "REVENUE")
-
-                        // Revenue Section
-                        RevenueChartsView(symbol: item.symbol, apiService: apiService)
-                            .id("revenue")
 
                         SectionDivider(title: "NOTES & RESEARCH")
 
-                        // Notes Section
                         StockNotesSection(
                             item: item,
                             editingNotes: $editingNotes,
@@ -1801,9 +2596,16 @@ struct StockDetailView: View {
                             onAddTag: addTag,
                             onRemoveTag: removeTag
                         )
-                        .id("notes")
                         .padding(.bottom, 40)
                     }
+                } else if selectedTab == 1 {
+                    // Revenue
+                    RevenueChartsView(symbol: item.symbol, apiService: apiService)
+                        .padding(.bottom, 40)
+                } else {
+                    // Earnings
+                    EarningsChartsView(symbol: item.symbol, apiService: apiService)
+                        .padding(.bottom, 40)
                 }
             }
         }
@@ -1830,23 +2632,10 @@ struct StockDetailView: View {
     
     private func updatePrice() {
         isUpdating = true
-        
-        Task {
-            do {
-                let quote = try await apiService.fetchStockQuote(symbol: item.symbol)
-                await MainActor.run {
-                    item.currentPrice = quote.currentPrice
-                    item.priceChange = quote.change
-                    item.priceChangePercent = quote.changePercent
-                    item.lastUpdated = Date()
-                    isUpdating = false
-                }
-            } catch {
-                await MainActor.run {
-                    isUpdating = false
-                }
-            }
-        }
+        // Note: Real-time price updates require a data provider
+        // Finnhub has been removed as it's not legal for commercial use
+        // Consider alternative providers like Alpha Vantage, IEX Cloud, or Polygon.io
+        isUpdating = false
     }
     
     private func addTag() {
@@ -2077,25 +2866,10 @@ struct StockOverviewSection: View {
 
     private func loadMetrics() {
         isLoadingMetrics = true
-
-        Task {
-            do {
-                async let metricsData = apiService.fetchCompanyMetrics(symbol: item.symbol)
-                async let quoteData = apiService.fetchStockQuote(symbol: item.symbol)
-
-                let (fetchedMetrics, fetchedQuote) = try await (metricsData, quoteData)
-
-                await MainActor.run {
-                    metrics = fetchedMetrics
-                    currentQuote = fetchedQuote
-                    isLoadingMetrics = false
-                }
-            } catch {
-                await MainActor.run {
-                    isLoadingMetrics = false
-                }
-            }
-        }
+        // Note: Real-time quotes and company metrics require a data provider
+        // Finnhub has been removed as it's not legal for commercial use
+        // Consider alternative providers like Alpha Vantage, IEX Cloud, or Polygon.io
+        isLoadingMetrics = false
     }
 
     private func formatMarketCap(_ value: Double) -> String {
@@ -2563,25 +3337,10 @@ struct StockOverviewTab: View {
 
     private func loadMetrics() {
         isLoadingMetrics = true
-
-        Task {
-            do {
-                async let metricsData = apiService.fetchCompanyMetrics(symbol: item.symbol)
-                async let quoteData = apiService.fetchStockQuote(symbol: item.symbol)
-
-                let (fetchedMetrics, fetchedQuote) = try await (metricsData, quoteData)
-
-                await MainActor.run {
-                    metrics = fetchedMetrics
-                    currentQuote = fetchedQuote
-                    isLoadingMetrics = false
-                }
-            } catch {
-                await MainActor.run {
-                    isLoadingMetrics = false
-                }
-            }
-        }
+        // Note: Real-time quotes and company metrics require a data provider
+        // Finnhub has been removed as it's not legal for commercial use
+        // Consider alternative providers like Alpha Vantage, IEX Cloud, or Polygon.io
+        isLoadingMetrics = false
     }
 
     private func formatMarketCap(_ value: Double) -> String {
@@ -2606,10 +3365,9 @@ struct RevenueChartView: View {
     @State private var revenueData: [RevenueDataPoint] = []
     @State private var isLoading = false
     @State private var selectedBar: UUID?
-    @State private var scrollViewProxy: ScrollViewProxy?
-    
+
     var displayData: [RevenueDataPoint] {
-        // Reverse the order so oldest is first (left side) - show 16 quarters (4 years)
+        // Reverse the order so oldest is first (left side) - show all quarters
         Array(revenueData.prefix(ChartConstants.quarterlyDataLimit).reversed())
     }
 
@@ -2652,115 +3410,112 @@ struct RevenueChartView: View {
                                 .font(.headline)
                                 .frame(maxWidth: .infinity, alignment: .center)
                             
-                            HStack(alignment: .center, spacing: 8) {
-                                // Fixed Y-axis on the left
-                                VStack(alignment: .trailing, spacing: 0) {
-                                    ForEach(Array(getYAxisLabels().enumerated()), id: \.offset) { index, value in
-                                        Text(formatYAxisValue(value))
-                                            .font(.caption2)
-                                            .foregroundStyle(.secondary)
-                                        
-                                        if index < getYAxisLabels().count - 1 {
-                                            Spacer()
+                            GeometryReader { geometry in
+                                let availableWidth = geometry.size.width - ChartConstants.yAxisWidth - 32
+                                let barCount = CGFloat(displayData.count)
+                                let dynamicBarWidth = max((availableWidth - (barCount - 1) * ChartConstants.barSpacing) / barCount, 4)
+
+                                HStack(alignment: .center, spacing: 8) {
+                                    // Fixed Y-axis on the left
+                                    VStack(alignment: .trailing, spacing: 0) {
+                                        ForEach(Array(getYAxisLabels().enumerated()), id: \.offset) { index, value in
+                                            Text(formatYAxisValue(value))
+                                                .font(.caption2)
+                                                .foregroundStyle(.secondary)
+
+                                            if index < getYAxisLabels().count - 1 {
+                                                Spacer()
+                                            }
                                         }
                                     }
-                                }
-                                .frame(width: ChartConstants.yAxisWidth, height: ChartConstants.chartHeight)
-                                
-                                // Scrollable chart area
-                                ScrollView(.horizontal, showsIndicators: false) {
-                                    ScrollViewReader { proxy in
-                                        VStack(spacing: 0) {
-                                            ZStack(alignment: .bottom) {
-                                                VStack(spacing: 0) {
-                                                    ForEach(0..<5) { index in
-                                                        Divider()
-                                                            .background(Color.gray.opacity(0.2))
-                                                        if index < 4 {
-                                                            Spacer()
-                                                        }
+                                    .frame(width: ChartConstants.yAxisWidth, height: ChartConstants.chartHeight)
+
+                                    // Chart area - no scrolling, all bars visible
+                                    VStack(spacing: 0) {
+                                        ZStack(alignment: .bottom) {
+                                            VStack(spacing: 0) {
+                                                ForEach(0..<5) { index in
+                                                    Divider()
+                                                        .background(Color.gray.opacity(0.2))
+                                                    if index < 4 {
+                                                        Spacer()
                                                     }
                                                 }
-                                                .frame(height: ChartConstants.chartHeight)
-                                                
-                                                HStack(alignment: .bottom, spacing: 8) {
-                                                    ForEach(displayData) { point in
-                                                        VStack(spacing: 4) {
-                                                            if selectedBar == point.id {
-                                                                VStack(spacing: 2) {
-                                                                    Text(formatDate(point.period))
-                                                                        .font(.caption2)
-                                                                        .fontWeight(.bold)
-                                                                    Text(formatDetailedValue(point.revenue))
-                                                                        .font(.caption2)
-                                                                        .fontWeight(.semibold)
-                                                                    #if DEBUG
-                                                                    Text(point.period)
-                                                                        .font(.system(size: 8))
-                                                                        .opacity(0.7)
-                                                                    #endif
-                                                                }
-                                                                .foregroundStyle(.white)
-                                                                .padding(.horizontal, 8)
-                                                                .padding(.vertical, 4)
-                                                                .background(
-                                                                    RoundedRectangle(cornerRadius: 6)
-                                                                        .fill(Color.blue)
-                                                                )
-                                                                .fixedSize()
-                                                                .transition(.opacity.combined(with: .scale))
-                                                            } else {
-                                                                // Empty spacer to maintain consistent height
-                                                                Color.clear
-                                                                    .frame(height: 50)
+                                            }
+                                            .frame(height: ChartConstants.chartHeight)
+
+                                            HStack(alignment: .bottom, spacing: ChartConstants.barSpacing) {
+                                                ForEach(Array(displayData.enumerated()), id: \.element.id) { index, point in
+                                                    VStack(spacing: 4) {
+                                                        if selectedBar == point.id {
+                                                            VStack(spacing: 2) {
+                                                                Text(formatDate(point.period))
+                                                                    .font(.caption2)
+                                                                    .fontWeight(.bold)
+                                                                Text(formatDetailedValue(point.revenue))
+                                                                    .font(.caption2)
+                                                                    .fontWeight(.semibold)
+                                                                #if DEBUG
+                                                                Text(point.period)
+                                                                    .font(.system(size: 8))
+                                                                    .opacity(0.7)
+                                                                #endif
                                                             }
+                                                            .foregroundStyle(.white)
+                                                            .padding(.horizontal, 8)
+                                                            .padding(.vertical, 4)
+                                                            .background(
+                                                                RoundedRectangle(cornerRadius: 6)
+                                                                    .fill(Color.blue)
+                                                            )
+                                                            .fixedSize()
+                                                            .offset(x: index < 3 ? 20 : (index >= displayData.count - 3 ? -20 : 0))
+                                                            .transition(.opacity.combined(with: .scale))
+                                                        } else {
+                                                            // Empty spacer to maintain consistent height
+                                                            Color.clear
+                                                                .frame(height: 50)
+                                                        }
 
-                                                            Spacer(minLength: 0)
+                                                        Spacer(minLength: 0)
 
-                                                            RoundedRectangle(cornerRadius: 4)
-                                                                .fill(selectedBar == point.id ? Color.blue.opacity(0.8) : Color.blue)
-                                                                .frame(width: ChartConstants.barWidth, height: barHeight(for: point.revenue, in: ChartConstants.barChartHeight))
-                                                                .onTapGesture {
-                                                                    withAnimation(.easeInOut(duration: 0.2)) {
-                                                                        if selectedBar == point.id {
-                                                                            selectedBar = nil
-                                                                        } else {
-                                                                            selectedBar = point.id
-                                                                        }
+                                                        RoundedRectangle(cornerRadius: 4)
+                                                            .fill(selectedBar == point.id ? Color.blue.opacity(0.8) : Color.blue)
+                                                            .frame(width: dynamicBarWidth, height: barHeight(for: point.revenue, in: ChartConstants.barChartHeight))
+                                                            .onTapGesture {
+                                                                withAnimation(.easeInOut(duration: 0.2)) {
+                                                                    if selectedBar == point.id {
+                                                                        selectedBar = nil
+                                                                    } else {
+                                                                        selectedBar = point.id
                                                                     }
                                                                 }
-                                                        }
-                                                        .frame(width: 40, height: 290, alignment: .bottom)
-                                                        .id(point.id)
+                                                            }
                                                     }
-                                                }
-                                                .padding(.horizontal, 40)
-                                            }
-                                            
-                                            // X-axis labels
-                                            HStack(alignment: .top, spacing: 8) {
-                                                ForEach(displayData) { point in
-                                                    Text(formatDate(point.period))
-                                                        .font(.caption2)
-                                                        .foregroundStyle(.secondary)
-                                                        .frame(width: 40)
+                                                    .frame(width: dynamicBarWidth, height: 290, alignment: .bottom)
+                                                    .id(point.id)
                                                 }
                                             }
-                                            .padding(.top, 4)
-                                            .padding(.horizontal, 40)
+                                            .padding(.horizontal, 8)
                                         }
-                                        .onAppear {
-                                            // Scroll to the rightmost position (most recent quarter)
-                                            if let lastQuarter = displayData.last {
-                                                Task { @MainActor in
-                                                    try? await Task.sleep(nanoseconds: UInt64(ChartConstants.scrollDelay * 1_000_000_000))
-                                                    proxy.scrollTo(lastQuarter.id, anchor: .trailing)
-                                                }
+
+                                        // X-axis labels - show every 4th to avoid overlap
+                                        HStack(alignment: .top, spacing: ChartConstants.barSpacing) {
+                                            ForEach(Array(displayData.enumerated()), id: \.element.id) { index, point in
+                                                let shouldShowLabel = index % 4 == 0 || index == displayData.count - 1
+
+                                                Text(shouldShowLabel ? formatDate(point.period) : "")
+                                                    .font(.system(size: 9))
+                                                    .foregroundStyle(.secondary)
+                                                    .frame(width: dynamicBarWidth)
                                             }
                                         }
+                                        .padding(.top, 4)
+                                        .padding(.horizontal, 8)
                                     }
                                 }
                             }
+                            .frame(height: 340)
                         }
                         .padding()
                         .background(Color(uiColor: .systemBackground))
@@ -2778,7 +3533,7 @@ struct RevenueChartView: View {
             }
         }
     }
-    
+
     private func loadRevenue() {
         isLoading = true
         
@@ -2804,7 +3559,7 @@ struct RevenueChartView: View {
         let normalized = value / maxRevenue
         return maxHeight * normalized
     }
-    
+
     private func formatDate(_ dateString: String) -> String {
         ChartUtilities.formatQuarterDate(dateString)
     }
@@ -2960,27 +3715,12 @@ struct MetricsView: View {
     
     private func loadMetrics() {
         isLoading = true
-        
-        Task {
-            do {
-                async let metricsData = apiService.fetchCompanyMetrics(symbol: symbol)
-                async let quoteData = apiService.fetchStockQuote(symbol: symbol)
-                
-                let (fetchedMetrics, fetchedQuote) = try await (metricsData, quoteData)
-                
-                await MainActor.run {
-                    metrics = fetchedMetrics
-                    currentQuote = fetchedQuote
-                    isLoading = false
-                }
-            } catch {
-                await MainActor.run {
-                    metrics = nil
-                    currentQuote = nil
-                    isLoading = false
-                }
-            }
-        }
+        // Note: Real-time quotes and company metrics require a data provider
+        // Finnhub has been removed as it's not legal for commercial use
+        // Consider alternative providers like Alpha Vantage, IEX Cloud, or Polygon.io
+        metrics = nil
+        currentQuote = nil
+        isLoading = false
     }
     
     private func formatMarketCap(_ value: Double) -> String {

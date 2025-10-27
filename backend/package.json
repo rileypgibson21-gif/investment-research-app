@@ -1,0 +1,17 @@
+{
+  "name": "stock-research-api",
+  "version": "1.0.0",
+  "description": "Cloudflare Worker proxy for Marketstack API with caching",
+  "main": "src/index.js",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "tail": "wrangler tail"
+  },
+  "keywords": ["cloudflare", "worker", "marketstack", "stock-api"],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "wrangler": "^3.0.0"
+  }
+}

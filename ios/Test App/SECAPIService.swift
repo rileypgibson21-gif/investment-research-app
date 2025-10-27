@@ -1,21 +1,17 @@
 import Foundation
 
-// MARK: - SEC EDGAR API Service
+// MARK: - SEC EDGAR API Service (via Cloudflare Workers with caching)
 class SECAPIService {
-    private let baseURL = "https://data.sec.gov"
-    private let companyCIKURL = "https://www.sec.gov/cgi-bin/browse-edgar"
-    
-    // SEC requires a User-Agent header
-    private let userAgent = "InvestmentResearchApp contact@yourcompany.com"
+    // Use backend API with caching to support 1000s of users
+    private let baseURL = "https://my-stock-api.stock-research-api.workers.dev"
     
     // MARK: - Get Company CIK from Ticker
     func getCIK(for ticker: String) async throws -> String {
-        // First, try the company tickers JSON endpoint
-        let tickersURL = URL(string: "https://www.sec.gov/files/company_tickers.json")!
-        
-        var request = URLRequest(url: tickersURL)
-        request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
-        
+        // Use cached backend endpoint
+        let tickersURL = URL(string: "\(baseURL)/api/sec/tickers")!
+
+        let request = URLRequest(url: tickersURL)
+
         let (data, _) = try await URLSession.shared.data(for: request)
         let tickers = try JSONDecoder().decode([String: CompanyTicker].self, from: data)
         
@@ -32,14 +28,14 @@ class SECAPIService {
     
     // MARK: - Get Company Facts (All Financial Data)
     func getCompanyFacts(cik: String) async throws -> CompanyFacts {
-        let urlString = "\(baseURL)/api/xbrl/companyfacts/CIK\(cik).json"
+        // Use cached backend endpoint
+        let urlString = "\(baseURL)/api/sec/facts/\(cik)"
         guard let url = URL(string: urlString) else {
             throw SECError.invalidURL
         }
-        
-        var request = URLRequest(url: url)
-        request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
-        
+
+        let request = URLRequest(url: url)
+
         let (data, _) = try await URLSession.shared.data(for: request)
         
         // Use a decoder that handles null values
@@ -56,14 +52,14 @@ class SECAPIService {
     
     // MARK: - Get Company Submissions (Filings List)
     func getCompanySubmissions(cik: String) async throws -> CompanySubmissions {
-        let urlString = "\(baseURL)/submissions/CIK\(cik).json"
+        // Use cached backend endpoint
+        let urlString = "\(baseURL)/api/sec/submissions/\(cik)"
         guard let url = URL(string: urlString) else {
             throw SECError.invalidURL
         }
-        
-        var request = URLRequest(url: url)
-        request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
-        
+
+        let request = URLRequest(url: url)
+
         let (data, _) = try await URLSession.shared.data(for: request)
         return try JSONDecoder().decode(CompanySubmissions.self, from: data)
     }

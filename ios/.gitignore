@@ -1,0 +1,15 @@
+# Xcode
+*.xcuserstate
+xcuserdata/
+DerivedData/
+*.xcworkspace/xcuserdata/
+
+# SwiftPM
+.swiftpm/
+.build/
+
+# macOS
+.DS_Store
+
+# API Keys (IMPORTANT - keep your keys secret!)
+**/Secrets.swift
