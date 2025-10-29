@@ -3,7 +3,7 @@ import SwiftData
 
 // MARK: - API Constants
 private enum APIConstants {
-    static let cloudflareBaseURL = "https://stock-api-v2.stock-research-api.workers.dev"
+    static let cloudflareBaseURL = "https://stock-research-api.stock-research-api.workers.dev"
 }
 
 // MARK: - Stock API Service (Using Your Cloudflare API)
@@ -16,11 +16,22 @@ class StockAPIService {
         guard let url = URL(string: urlString) else {
             throw APIError.invalidURL
         }
-        
+
         let (data, _) = try await URLSession.shared.data(from: url)
         return try JSONDecoder().decode(StockProfile.self, from: data)
     }
-    
+
+    // MARK: - Stock Quote (Price Data)
+    func fetchQuote(symbol: String) async throws -> StockQuote {
+        let urlString = "\(apiBaseURL)/api/quote/\(symbol.uppercased())"
+        guard let url = URL(string: urlString) else {
+            throw APIError.invalidURL
+        }
+
+        let (data, _) = try await URLSession.shared.data(from: url)
+        return try JSONDecoder().decode(StockQuote.self, from: data)
+    }
+
     // MARK: - Market News (Placeholder)
     func fetchMarketNews() async throws -> [NewsArticle] {
         return []
@@ -346,8 +357,9 @@ struct TTMRevenueChartView: View {
     @State private var errorMessage: String?
 
     var displayData: [RevenueDataPoint] {
-        // Reverse the order so oldest is first (left side) - show all TTM periods
-        Array(revenueData.prefix(ChartConstants.ttmDataLimit).reversed())
+        // Sort by period (oldest first on left, newest on right) and take latest 37 TTM periods
+        let sorted = revenueData.sorted { $0.period < $1.period }
+        return Array(sorted.suffix(ChartConstants.ttmDataLimit))
     }
 
     var maxRevenue: Double {
@@ -1000,7 +1012,7 @@ struct ResearchListView: View {
 // MARK: - Research Row View
 struct ResearchRowView: View {
     let item: ResearchItem
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
@@ -1009,49 +1021,35 @@ struct ResearchRowView: View {
                         Text(item.symbol.uppercased())
                             .font(.headline)
                             .fontWeight(.bold)
-                        
+
                         if item.isWatchlist {
                             Image(systemName: "star.fill")
                                 .font(.caption)
                                 .foregroundStyle(.yellow)
                         }
                     }
-                    
+
                     Text(item.name)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
-                
+
                 Spacer()
-                
-                VStack(alignment: .trailing, spacing: 4) {
-                    Text("$\(item.currentPrice, specifier: "%.2f")")
-                        .font(.headline)
-                        .fontWeight(.semibold)
-                    
-                    HStack(spacing: 4) {
-                        Image(systemName: item.priceChangePercent >= 0 ? "arrow.up.right" : "arrow.down.right")
-                            .font(.caption)
-                        Text("\(item.priceChangePercent >= 0 ? "+" : "")\(item.priceChangePercent, specifier: "%.2f")%")
-                            .font(.subheadline)
-                    }
-                    .foregroundStyle(item.priceChangePercent >= 0 ? .green : .red)
-                }
-            }
-            
-            HStack {
+
                 if item.rating > 0 {
                     HStack(spacing: 2) {
                         ForEach(0..<5) { index in
                             Image(systemName: index < item.rating ? "star.fill" : "star")
-                                .font(.caption2)
+                                .font(.caption)
                                 .foregroundStyle(index < item.rating ? .yellow : .gray)
                         }
                     }
                 }
-                
+            }
+
+            HStack {
                 if !item.tags.isEmpty {
-                    ForEach(item.tags.prefix(2), id: \.self) { tag in
+                    ForEach(item.tags.prefix(3), id: \.self) { tag in
                         Text(tag)
                             .font(.caption2)
                             .padding(.horizontal, 6)
@@ -1061,9 +1059,9 @@ struct ResearchRowView: View {
                             .cornerRadius(4)
                     }
                 }
-                
+
                 Spacer()
-                
+
                 Text(item.dateAdded, style: .date)
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
@@ -1078,8 +1076,7 @@ struct WatchlistView: View {
     @Environment(\.modelContext) private var modelContext
     let items: [ResearchItem]
     @Binding var showingAddStock: Bool
-    @State private var isRefreshing = false
-    
+
     var body: some View {
         NavigationStack {
             ZStack {
@@ -1108,35 +1105,18 @@ struct WatchlistView: View {
             .navigationTitle("Watchlist")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    HStack(spacing: 12) {
-                        Button(action: refreshAllPrices) {
-                            Image(systemName: "arrow.clockwise")
-                                .rotationEffect(.degrees(isRefreshing ? 360 : 0))
-                                .animation(isRefreshing ? .linear(duration: 1).repeatForever(autoreverses: false) : .default, value: isRefreshing)
-                        }
-                        .disabled(isRefreshing || items.isEmpty)
-                        
-                        Button(action: { showingAddStock = true }) {
-                            Image(systemName: "plus")
-                        }
+                    Button(action: { showingAddStock = true }) {
+                        Image(systemName: "plus")
                     }
                 }
             }
         }
     }
-    
-    private func refreshAllPrices() {
-        isRefreshing = true
-        // Note: Real-time price updates require a data provider
-        // Finnhub has been removed as it's not legal for commercial use
-        // Consider alternative providers like Alpha Vantage, IEX Cloud, or Polygon.io
-        isRefreshing = false
-    }
 }
 
 struct WatchlistRowView: View {
     let item: ResearchItem
-    
+
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
@@ -1147,20 +1127,25 @@ struct WatchlistRowView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-            
+
             Spacer()
-            
+
             VStack(alignment: .trailing, spacing: 4) {
-                Text("$\(item.currentPrice, specifier: "%.2f")")
-                    .font(.headline)
-                
-                HStack(spacing: 4) {
-                    Image(systemName: item.priceChangePercent >= 0 ? "arrow.up.right" : "arrow.down.right")
-                        .font(.caption2)
-                    Text("\(item.priceChangePercent >= 0 ? "+" : "")\(item.priceChangePercent, specifier: "%.2f")%")
-                        .font(.caption)
+                if item.rating > 0 {
+                    HStack(spacing: 2) {
+                        ForEach(0..<item.rating, id: \.self) { _ in
+                            Image(systemName: "star.fill")
+                                .font(.caption2)
+                                .foregroundStyle(.yellow)
+                        }
+                    }
                 }
-                .foregroundStyle(item.priceChangePercent >= 0 ? .green : .red)
+
+                if !item.tags.isEmpty {
+                    Text("\(item.tags.count) tag\(item.tags.count == 1 ? "" : "s")")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
             }
         }
     }
@@ -1325,17 +1310,14 @@ struct QuickAddRow: View {
 struct AddStockView: View {
     @Environment(\.dismiss) private var dismiss
     let modelContext: ModelContext
-    
+
     @State private var symbol = ""
     @State private var name = ""
-    @State private var currentPrice = 0.0
-    @State private var priceChange = 0.0
-    @State private var priceChangePercent = 0.0
     @State private var isSearching = false
     @State private var searchError: String?
-    
+
     private let apiService = StockAPIService()
-    
+
     var body: some View {
         NavigationStack {
             Form {
@@ -1346,7 +1328,7 @@ struct AddStockView: View {
                             .onChange(of: symbol) { _, _ in
                                 searchError = nil
                             }
-                        
+
                         if isSearching {
                             ProgressView()
                         } else {
@@ -1356,40 +1338,37 @@ struct AddStockView: View {
                             .disabled(symbol.isEmpty)
                         }
                     }
-                    
+
                     if let error = searchError {
                         Text(error)
                             .font(.caption)
                             .foregroundStyle(.red)
                     }
                 }
-                
+
                 if !name.isEmpty {
                     Section("Stock Details") {
+                        HStack {
+                            Text("Symbol")
+                            Spacer()
+                            Text(symbol.uppercased())
+                                .fontWeight(.medium)
+                        }
+
                         HStack {
                             Text("Company")
                             Spacer()
                             Text(name)
                                 .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.trailing)
                         }
-                        
-                        HStack {
-                            Text("Current Price")
-                            Spacer()
-                            Text("$\(currentPrice, specifier: "%.2f")")
-                                .foregroundStyle(.secondary)
-                        }
-                        
-                        HStack {
-                            Text("Change")
-                            Spacer()
-                            HStack(spacing: 4) {
-                                Image(systemName: priceChangePercent >= 0 ? "arrow.up.right" : "arrow.down.right")
-                                    .font(.caption)
-                                Text("\(priceChangePercent >= 0 ? "+" : "")\(priceChangePercent, specifier: "%.2f")%")
-                            }
-                            .foregroundStyle(priceChangePercent >= 0 ? .green : .red)
-                        }
+                    }
+
+                    Section {
+                        Text("View price charts and fundamental data after adding")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .center)
                     }
                 }
             }
@@ -1401,7 +1380,7 @@ struct AddStockView: View {
                         dismiss()
                     }
                 }
-                
+
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Add") {
                         addStock()
@@ -1411,7 +1390,7 @@ struct AddStockView: View {
             }
         }
     }
-    
+
     private func searchStock() {
         isSearching = true
         searchError = nil
@@ -1419,14 +1398,9 @@ struct AddStockView: View {
         Task {
             do {
                 let profile = try await apiService.searchStock(symbol: symbol)
-                // Note: Real-time quotes removed (Finnhub not legal for commercial use)
-                // Using default values for price fields
 
                 await MainActor.run {
                     name = profile.name
-                    currentPrice = 0.0
-                    priceChange = 0.0
-                    priceChangePercent = 0.0
                     isSearching = false
                 }
             } catch {
@@ -1437,16 +1411,16 @@ struct AddStockView: View {
             }
         }
     }
-    
+
     private func addStock() {
         let newItem = ResearchItem(
             symbol: symbol,
             name: name,
-            currentPrice: currentPrice,
-            priceChange: priceChange,
-            priceChangePercent: priceChangePercent
+            currentPrice: 0.0,
+            priceChange: 0.0,
+            priceChangePercent: 0.0
         )
-        
+
         modelContext.insert(newItem)
         dismiss()
     }
@@ -1455,7 +1429,6 @@ struct AddStockView: View {
 // MARK: - Stock Detail View
 struct StockDetailView: View {
     @Bindable var item: ResearchItem
-    @State private var isUpdating = false
     @State private var editingNotes = false
     @State private var newTag = ""
     @State private var showingAddTag = false
@@ -1472,15 +1445,19 @@ struct StockDetailView: View {
                 }
 
                 Button(action: { selectedTab = 1 }) {
-                    Label("Revenue", systemImage: selectedTab == 1 ? "checkmark" : "")
+                    Label("Price Chart", systemImage: selectedTab == 1 ? "checkmark" : "")
                 }
 
                 Button(action: { selectedTab = 2 }) {
-                    Label("Earnings", systemImage: selectedTab == 2 ? "checkmark" : "")
+                    Label("Revenue", systemImage: selectedTab == 2 ? "checkmark" : "")
+                }
+
+                Button(action: { selectedTab = 3 }) {
+                    Label("Earnings", systemImage: selectedTab == 3 ? "checkmark" : "")
                 }
             } label: {
                 HStack {
-                    Text(selectedTab == 0 ? "Overview" : selectedTab == 1 ? "Revenue" : "Earnings")
+                    Text(selectedTab == 0 ? "Overview" : selectedTab == 1 ? "Price Chart" : selectedTab == 2 ? "Revenue" : "Earnings")
                         .fontWeight(.semibold)
                     Image(systemName: "chevron.down")
                         .font(.caption)
@@ -1501,10 +1478,10 @@ struct StockDetailView: View {
                     VStack(spacing: 0) {
                         StockOverviewSection(
                             item: item,
-                            isUpdating: $isUpdating,
+                            isUpdating: .constant(false),
                             showingAddTag: $showingAddTag,
                             apiService: apiService,
-                            onUpdatePrice: updatePrice
+                            onUpdatePrice: {}
                         )
 
                         SectionDivider(title: "NOTES & RESEARCH")
@@ -1520,6 +1497,10 @@ struct StockDetailView: View {
                         .padding(.bottom, 40)
                     }
                 } else if selectedTab == 1 {
+                    // Price Chart
+                    PriceChartView(symbol: item.symbol, marketDataService: MarketDataService())
+                        .padding(.bottom, 40)
+                } else if selectedTab == 2 {
                     // Revenue
                     RevenueChartsView(symbol: item.symbol, apiService: apiService)
                         .padding(.bottom, 40)
@@ -1532,14 +1513,6 @@ struct StockDetailView: View {
         }
         .navigationTitle(item.symbol.uppercased())
         .navigationBarTitleDisplayMode(.large)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button(action: updatePrice) {
-                    Image(systemName: "arrow.clockwise")
-                }
-                .disabled(isUpdating)
-            }
-        }
         .alert("Add Tag", isPresented: $showingAddTag) {
             TextField("Tag name", text: $newTag)
             Button("Cancel", role: .cancel) {
@@ -1550,15 +1523,7 @@ struct StockDetailView: View {
             }
         }
     }
-    
-    private func updatePrice() {
-        isUpdating = true
-        // Note: Real-time price updates require a data provider
-        // Finnhub has been removed as it's not legal for commercial use
-        // Consider alternative providers like Alpha Vantage, IEX Cloud, or Polygon.io
-        isUpdating = false
-    }
-    
+
     private func addTag() {
         guard !newTag.isEmpty else { return }
         if !item.tags.contains(newTag) {
@@ -1566,7 +1531,7 @@ struct StockDetailView: View {
         }
         newTag = ""
     }
-    
+
     private func removeTag(_ tag: String) {
         item.tags.removeAll { $0 == tag }
     }
@@ -1622,186 +1587,123 @@ struct StockOverviewSection: View {
     let apiService: StockAPIService
     let onUpdatePrice: () -> Void
 
-    @State private var metrics: CompanyMetrics?
-    @State private var currentQuote: StockQuote?
-    @State private var isLoadingMetrics = false
-
     var body: some View {
         VStack(spacing: 20) {
-            // Compact price header
-            VStack(spacing: 8) {
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text("$\(item.currentPrice, specifier: "%.2f")")
-                        .font(.system(size: 32, weight: .bold))
-
-                    HStack(spacing: 4) {
-                        Image(systemName: item.priceChangePercent >= 0 ? "arrow.up.right" : "arrow.down.right")
-                        Text("\(item.priceChangePercent >= 0 ? "+" : "")\(item.priceChangePercent, specifier: "%.2f")%")
-                    }
+            // Company Info Header
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Company Information")
                     .font(.subheadline)
                     .fontWeight(.semibold)
-                    .foregroundStyle(item.priceChangePercent >= 0 ? .green : .red)
-
-                    Spacer()
-
-                    if isUpdating {
-                        ProgressView()
-                            .scaleEffect(0.9)
-                    }
-                }
-                .padding(.horizontal)
-
-                Text("Updated \(item.lastUpdated, format: .relative(presentation: .named))")
-                    .font(.caption)
                     .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal)
-            }
-            .padding(.top, 12)
 
-            // 52-Week Range (if available)
-            if let metrics = metrics, let quote = currentQuote,
-               let high = metrics.week52High, let low = metrics.week52Low {
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("52-Week Range")
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(.secondary)
-
-                    VStack(spacing: 8) {
-                        HStack {
-                            Text("Low")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            Spacer()
-                            Text("High")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-
-                        ZStack(alignment: .leading) {
-                            RoundedRectangle(cornerRadius: 4)
-                                .fill(Color.gray.opacity(0.2))
-                                .frame(height: 8)
-
-                            GeometryReader { geometry in
-                                let range = high - low
-                                let position = range > 0 ? (quote.currentPrice - low) / range : 0.5
-                                let xPosition = geometry.size.width * position
-
-                                Circle()
-                                    .fill(Color.blue)
-                                    .frame(width: 16, height: 16)
-                                    .offset(x: max(0, min(xPosition - 8, geometry.size.width - 16)))
-                            }
-                            .frame(height: 16)
-                        }
-
-                        HStack {
-                            Text("$\(low, specifier: "%.2f")")
-                                .font(.caption)
-                                .fontWeight(.semibold)
-                            Spacer()
-                            Text("$\(quote.currentPrice, specifier: "%.2f")")
-                                .font(.caption)
-                                .fontWeight(.semibold)
-                                .foregroundStyle(.blue)
-                            Spacer()
-                            Text("$\(high, specifier: "%.2f")")
-                                .font(.caption)
-                                .fontWeight(.semibold)
-                        }
+                VStack(spacing: 0) {
+                    HStack {
+                        Text("Symbol")
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Text(item.symbol.uppercased())
+                            .fontWeight(.medium)
                     }
+                    .padding()
+                    .background(Color(uiColor: .secondarySystemBackground))
+
+                    Divider().padding(.horizontal)
+
+                    HStack {
+                        Text("Company Name")
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Text(item.name)
+                            .fontWeight(.medium)
+                            .multilineTextAlignment(.trailing)
+                    }
+                    .padding()
+                    .background(Color(uiColor: .secondarySystemBackground))
+
+                    Divider().padding(.horizontal)
+
+                    HStack {
+                        Text("Added")
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Text(item.dateAdded, format: .dateTime.month().day().year())
+                            .fontWeight(.medium)
+                    }
+                    .padding()
+                    .background(Color(uiColor: .secondarySystemBackground))
                 }
-                .padding()
-                .background(Color(uiColor: .secondarySystemBackground))
                 .cornerRadius(12)
                 .padding(.horizontal)
             }
+            .padding(.top, 12)
 
-            // Key Metrics Grid
-            if let metrics = metrics {
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Key Metrics")
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal)
-
-                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                        if let marketCap = metrics.marketCap {
-                            MetricCard(title: "Market Cap", value: formatMarketCap(marketCap))
-                        }
-
-                        if let pe = metrics.peRatio {
-                            MetricCard(title: "P/E Ratio", value: String(format: "%.2f", pe))
-                        }
-
-                        if let beta = metrics.beta {
-                            MetricCard(title: "Beta", value: String(format: "%.2f", beta))
-                        }
-
-                        if let dividend = metrics.dividendYield {
-                            MetricCard(title: "Div Yield", value: String(format: "%.2f%%", dividend))
-                        }
-                    }
+            // Research Summary
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Your Research")
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.secondary)
                     .padding(.horizontal)
-                }
-            } else if isLoadingMetrics {
-                HStack {
-                    Spacer()
-                    ProgressView()
-                    Spacer()
-                }
-                .padding()
-            }
 
-            // Today's Stats
-            if let quote = currentQuote {
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Today's Stats")
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal)
-
-                    VStack(spacing: 0) {
-                        StatRow(label: "Open", value: String(format: "$%.2f", quote.open))
-                        Divider().padding(.horizontal)
-                        StatRow(label: "High", value: String(format: "$%.2f", quote.high))
-                        Divider().padding(.horizontal)
-                        StatRow(label: "Low", value: String(format: "$%.2f", quote.low))
-                        Divider().padding(.horizontal)
-                        StatRow(label: "Prev Close", value: String(format: "$%.2f", quote.previousClose))
+                VStack(spacing: 0) {
+                    HStack {
+                        Text("Rating")
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        if item.rating > 0 {
+                            HStack(spacing: 2) {
+                                ForEach(0..<5) { index in
+                                    Image(systemName: index < item.rating ? "star.fill" : "star")
+                                        .font(.caption)
+                                        .foregroundStyle(index < item.rating ? .yellow : .gray)
+                                }
+                            }
+                        } else {
+                            Text("Not rated")
+                                .foregroundStyle(.tertiary)
+                        }
                     }
+                    .padding()
                     .background(Color(uiColor: .secondarySystemBackground))
-                    .cornerRadius(12)
-                    .padding(.horizontal)
+
+                    Divider().padding(.horizontal)
+
+                    HStack {
+                        Text("Tags")
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        if !item.tags.isEmpty {
+                            Text("\(item.tags.count) tag\(item.tags.count == 1 ? "" : "s")")
+                                .fontWeight(.medium)
+                        } else {
+                            Text("None")
+                                .foregroundStyle(.tertiary)
+                        }
+                    }
+                    .padding()
+                    .background(Color(uiColor: .secondarySystemBackground))
+
+                    Divider().padding(.horizontal)
+
+                    HStack {
+                        Text("Notes")
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        if !item.notes.isEmpty {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(.green)
+                        } else {
+                            Text("None")
+                                .foregroundStyle(.tertiary)
+                        }
+                    }
+                    .padding()
+                    .background(Color(uiColor: .secondarySystemBackground))
                 }
+                .cornerRadius(12)
+                .padding(.horizontal)
             }
-        }
-        .onAppear {
-            loadMetrics()
-        }
-    }
-
-    private func loadMetrics() {
-        isLoadingMetrics = true
-        // Note: Real-time quotes and company metrics require a data provider
-        // Finnhub has been removed as it's not legal for commercial use
-        // Consider alternative providers like Alpha Vantage, IEX Cloud, or Polygon.io
-        isLoadingMetrics = false
-    }
-
-    private func formatMarketCap(_ value: Double) -> String {
-        if value >= 1_000_000_000_000 {
-            return String(format: "$%.2fT", value / 1_000_000_000_000)
-        } else if value >= 1_000_000_000 {
-            return String(format: "$%.2fB", value / 1_000_000_000)
-        } else if value >= 1_000_000 {
-            return String(format: "$%.2fM", value / 1_000_000)
-        } else {
-            return String(format: "$%.2f", value)
         }
     }
 }
@@ -2288,8 +2190,9 @@ struct RevenueChartView: View {
     @State private var selectedBar: UUID?
 
     var displayData: [RevenueDataPoint] {
-        // Reverse the order so oldest is first (left side) - show all quarters
-        Array(revenueData.prefix(ChartConstants.quarterlyDataLimit).reversed())
+        // Sort by period (oldest first on left, newest on right) and take latest 40 quarters
+        let sorted = revenueData.sorted { $0.period < $1.period }
+        return Array(sorted.suffix(ChartConstants.quarterlyDataLimit))
     }
 
     var maxRevenue: Double {

@@ -17,3 +17,4 @@ route = "my-stock-api.stock-research-api.workers.dev/*"
 
 [env.development]
 vars = { ENVIRONMENT = "development" }
+

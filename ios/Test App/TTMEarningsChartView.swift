@@ -19,8 +19,9 @@ struct TTMEarningsChartView: View {
     @State private var errorMessage: String?
 
     var displayData: [EarningsDataPoint] {
-        // Reverse the order so oldest is first (left side) - show 13 TTM periods
-        Array(earningsData.prefix(ChartConstants.ttmDataLimit).reversed())
+        // Sort by period (oldest first on left, newest on right) and take latest 37 TTM periods
+        let sorted = earningsData.sorted { $0.period < $1.period }
+        return Array(sorted.suffix(ChartConstants.ttmDataLimit))
     }
 
     var maxEarnings: Double {

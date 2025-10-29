@@ -18,8 +18,9 @@ struct EarningsChartView: View {
     @State private var scrollViewProxy: ScrollViewProxy?
 
     var displayData: [EarningsDataPoint] {
-        // Reverse the order so oldest is first (left side) - show 16 quarters (4 years)
-        Array(earningsData.prefix(ChartConstants.quarterlyDataLimit).reversed())
+        // Sort by period (oldest first on left, newest on right) and take latest 40 quarters
+        let sorted = earningsData.sorted { $0.period < $1.period }
+        return Array(sorted.suffix(ChartConstants.quarterlyDataLimit))
     }
 
     var maxEarnings: Double {

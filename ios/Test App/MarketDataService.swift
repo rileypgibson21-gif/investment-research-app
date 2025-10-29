@@ -28,7 +28,7 @@ class MarketDataService {
             low: response.low,
             open: response.open,
             previousClose: response.previousClose,
-            volume: response.volume,
+            volume: Double(response.volume),
             date: response.date
         )
     }
@@ -99,7 +99,7 @@ class MarketDataService {
 
 // MARK: - Data Models
 
-struct StockQuote {
+struct StockQuote: Codable {
     let symbol: String
     let currentPrice: Double
     let change: Double
@@ -108,7 +108,7 @@ struct StockQuote {
     let low: Double
     let open: Double
     let previousClose: Double
-    let volume: Int
+    let volume: Double
     let date: String
 }
 

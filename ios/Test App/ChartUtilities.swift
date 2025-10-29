@@ -148,7 +148,7 @@ enum ChartUtilities {
 enum ChartConstants {
     static let quarterlyDataLimit = 40  // 10 years of quarterly data
     static let ttmDataLimit = 37        // 37 TTM periods
-    static let growthDataLimit = 12     // 12 growth periods
+    static let growthDataLimit = 36     // 36 growth periods (10 years minus 4 quarters needed for YoY calc)
 
     static let chartHeight: CGFloat = 240
     static let barChartHeight: CGFloat = 210

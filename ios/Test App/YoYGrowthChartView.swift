@@ -45,12 +45,12 @@ struct YoYGrowthChartView: View {
             ))
         }
 
-        return growth.reversed() // Most recent first, then reverse for display
+        return growth // Already in ascending order (oldest to newest)
     }
 
     var displayData: [GrowthDataPoint] {
-        // Reverse the order so oldest is first (left side) - show 12 growth periods
-        Array(growthData.prefix(ChartConstants.growthDataLimit).reversed())
+        // Take the latest 36 growth periods (oldest first on left, newest on right)
+        Array(growthData.suffix(ChartConstants.growthDataLimit))
     }
 
     var growthRange: (min: Double, max: Double) {
