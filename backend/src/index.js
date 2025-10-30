@@ -211,6 +211,7 @@ async function getCIK(symbol, env) {
  * Extract quarterly revenue (last 40 quarters = 10 years)
  * Identifies quarterly data by period duration (~3 months = quarterly)
  * Combines data from multiple revenue keys to get complete history
+ * Calculates missing quarters from cumulative year-to-date data
  */
 function extractRevenue(facts) {
   const revenueKeys = [
@@ -220,49 +221,91 @@ function extractRevenue(facts) {
     'Revenues'                                                // Oldest
   ];
 
-  // Collect quarterly data from all available keys
+  // Collect quarterly data and cumulative data from all available keys
   const allQuarterly = [];
+  const allCumulative = [];
 
   for (const key of revenueKeys) {
     if (facts.facts['us-gaap'] && facts.facts['us-gaap'][key]) {
       const units = facts.facts['us-gaap'][key].units?.USD;
       if (!units) continue;
 
-      // Filter for quarterly data (period duration ~3 months)
-      const quarterly = units.filter(item => {
-        if (!item.val || item.val <= 0 || !item.start || !item.end) return false;
+      for (const item of units) {
+        if (!item.val || item.val <= 0 || !item.start || !item.end) continue;
 
-        // Calculate period duration in days
         const startDate = new Date(item.start);
         const endDate = new Date(item.end);
         const daysDiff = (endDate - startDate) / (1000 * 60 * 60 * 24);
 
-        // Quarterly data should be 70-120 days (roughly 3 months, allowing for variation)
-        // Includes data from both 10-Q (Q1, Q2, Q3) and 10-K (Q4)
-        return daysDiff >= 70 && daysDiff <= 120;
-      });
-
-      allQuarterly.push(...quarterly);
+        // Quarterly data (70-120 days)
+        if (daysDiff >= 70 && daysDiff <= 120) {
+          allQuarterly.push(item);
+        }
+        // Cumulative year-to-date data (for calculating missing quarters)
+        // 6-month (~180 days), 9-month (~270 days), 12-month (~360 days)
+        else if (daysDiff >= 150 && daysDiff <= 380) {
+          allCumulative.push(item);
+        }
+      }
     }
   }
 
-  if (allQuarterly.length === 0) {
-    return [];
-  }
-
-  // Sort by end date descending (most recent first)
-  // Then deduplicate by end date, keeping the first occurrence (most recent filing)
-  const deduplicated = allQuarterly
+  // Deduplicate quarterly data
+  const quarterlyDeduped = allQuarterly
     .sort((a, b) => b.end.localeCompare(a.end))
     .reduce((acc, item) => {
       if (!acc.find(x => x.period === item.end)) {
-        acc.push({ period: item.end, revenue: item.val });
+        acc.push({ period: item.end, revenue: item.val, start: item.start });
+      }
+      return acc;
+    }, []);
+
+  // Calculate missing quarters from cumulative data
+  // Group cumulative data by fiscal year (same start date)
+  const calculated = [];
+  for (const annual of allCumulative) {
+    const annualStart = annual.start;
+    const annualEnd = annual.end;
+    const annualDays = (new Date(annualEnd) - new Date(annualStart)) / (1000 * 60 * 60 * 24);
+
+    // Only process annual data (~365 days)
+    if (annualDays < 330 || annualDays > 380) continue;
+
+    // Find the 9-month cumulative for the same fiscal year
+    const nineMonth = allCumulative.find(item =>
+      item.start === annualStart &&
+      item.end < annualEnd &&
+      Math.abs((new Date(item.end) - new Date(item.start)) / (1000 * 60 * 60 * 24) - 270) < 30
+    );
+
+    if (nineMonth) {
+      // Calculate Q4 = Annual - 9-month
+      const q4Revenue = annual.val - nineMonth.val;
+      if (q4Revenue > 0) {
+        // Check if we already have this quarter
+        const hasQuarter = quarterlyDeduped.find(x => x.period === annualEnd);
+        if (!hasQuarter) {
+          calculated.push({ period: annualEnd, revenue: q4Revenue, start: nineMonth.end });
+        }
+      }
+    }
+  }
+
+  // Combine quarterly and calculated data
+  const combined = [...quarterlyDeduped.map(x => ({ period: x.period, revenue: x.revenue })), ...calculated];
+
+  // Sort by end date descending and deduplicate
+  const final = combined
+    .sort((a, b) => b.period.localeCompare(a.period))
+    .reduce((acc, item) => {
+      if (!acc.find(x => x.period === item.period)) {
+        acc.push({ period: item.period, revenue: item.revenue });
       }
       return acc;
     }, []);
 
   // Return most recent 40 quarters (10 years)
-  return deduplicated.slice(0, 40);
+  return final.slice(0, 40);
 }
 
 /**
@@ -293,6 +336,7 @@ function extractTTMRevenue(facts) {
  * Extract quarterly earnings (last 40 quarters = 10 years)
  * Identifies quarterly data by period duration (~3 months = quarterly)
  * Combines data from multiple earnings keys to get complete history
+ * Calculates missing quarters from cumulative year-to-date data
  */
 function extractEarnings(facts) {
   const earningsKeys = [
@@ -301,49 +345,87 @@ function extractEarnings(facts) {
     'NetIncomeLossAvailableToCommonStockholdersBasic'
   ];
 
-  // Collect quarterly data from all available keys
+  // Collect quarterly data and cumulative data from all available keys
   const allQuarterly = [];
+  const allCumulative = [];
 
   for (const key of earningsKeys) {
     if (facts.facts['us-gaap'] && facts.facts['us-gaap'][key]) {
       const units = facts.facts['us-gaap'][key].units?.USD;
       if (!units) continue;
 
-      // Filter for quarterly data (period duration ~3 months)
-      const quarterly = units.filter(item => {
-        if (!item.val || item.val === 0 || !item.start || !item.end) return false;
+      for (const item of units) {
+        if (!item.val || item.val === 0 || !item.start || !item.end) continue;
 
-        // Calculate period duration in days
         const startDate = new Date(item.start);
         const endDate = new Date(item.end);
         const daysDiff = (endDate - startDate) / (1000 * 60 * 60 * 24);
 
-        // Quarterly data should be 70-120 days (roughly 3 months, allowing for variation)
-        // Includes data from both 10-Q (Q1, Q2, Q3) and 10-K (Q4)
-        return daysDiff >= 70 && daysDiff <= 120;
-      });
-
-      allQuarterly.push(...quarterly);
+        // Quarterly data (70-120 days)
+        if (daysDiff >= 70 && daysDiff <= 120) {
+          allQuarterly.push(item);
+        }
+        // Cumulative year-to-date data (for calculating missing quarters)
+        else if (daysDiff >= 150 && daysDiff <= 380) {
+          allCumulative.push(item);
+        }
+      }
     }
   }
 
-  if (allQuarterly.length === 0) {
-    return [];
-  }
-
-  // Sort by end date descending (most recent first)
-  // Then deduplicate by end date, keeping the first occurrence (most recent filing)
-  const deduplicated = allQuarterly
+  // Deduplicate quarterly data
+  const quarterlyDeduped = allQuarterly
     .sort((a, b) => b.end.localeCompare(a.end))
     .reduce((acc, item) => {
       if (!acc.find(x => x.period === item.end)) {
-        acc.push({ period: item.end, earnings: item.val });
+        acc.push({ period: item.end, earnings: item.val, start: item.start });
+      }
+      return acc;
+    }, []);
+
+  // Calculate missing quarters from cumulative data
+  const calculated = [];
+  for (const annual of allCumulative) {
+    const annualStart = annual.start;
+    const annualEnd = annual.end;
+    const annualDays = (new Date(annualEnd) - new Date(annualStart)) / (1000 * 60 * 60 * 24);
+
+    // Only process annual data (~365 days)
+    if (annualDays < 330 || annualDays > 380) continue;
+
+    // Find the 9-month cumulative for the same fiscal year
+    const nineMonth = allCumulative.find(item =>
+      item.start === annualStart &&
+      item.end < annualEnd &&
+      Math.abs((new Date(item.end) - new Date(item.start)) / (1000 * 60 * 60 * 24) - 270) < 30
+    );
+
+    if (nineMonth) {
+      // Calculate Q4 = Annual - 9-month
+      const q4Earnings = annual.val - nineMonth.val;
+      // Check if we already have this quarter
+      const hasQuarter = quarterlyDeduped.find(x => x.period === annualEnd);
+      if (!hasQuarter) {
+        calculated.push({ period: annualEnd, earnings: q4Earnings, start: nineMonth.end });
+      }
+    }
+  }
+
+  // Combine quarterly and calculated data
+  const combined = [...quarterlyDeduped.map(x => ({ period: x.period, earnings: x.earnings })), ...calculated];
+
+  // Sort by end date descending and deduplicate
+  const final = combined
+    .sort((a, b) => b.period.localeCompare(a.period))
+    .reduce((acc, item) => {
+      if (!acc.find(x => x.period === item.period)) {
+        acc.push({ period: item.period, earnings: item.earnings });
       }
       return acc;
     }, []);
 
   // Return most recent 40 quarters (10 years)
-  return deduplicated.slice(0, 40);
+  return final.slice(0, 40);
 }
 
 /**
