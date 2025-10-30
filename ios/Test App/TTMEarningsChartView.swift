@@ -15,7 +15,6 @@ struct TTMEarningsChartView: View {
     @State private var earningsData: [EarningsDataPoint] = []
     @State private var isLoading = false
     @State private var selectedBar: UUID?
-    @State private var scrollViewProxy: ScrollViewProxy?
     @State private var errorMessage: String?
 
     var displayData: [EarningsDataPoint] {
@@ -41,7 +40,6 @@ struct TTMEarningsChartView: View {
                     ProgressView()
                     Spacer()
                 }
-                .frame(height: 400)
             } else if let error = errorMessage {
                 VStack(spacing: 20) {
                     Spacer()
@@ -58,7 +56,6 @@ struct TTMEarningsChartView: View {
                     }
                     Spacer()
                 }
-                .frame(height: 400)
             } else if earningsData.isEmpty {
                 VStack(spacing: 20) {
                     Spacer()
@@ -72,33 +69,36 @@ struct TTMEarningsChartView: View {
                     }
                     Spacer()
                 }
-                .frame(height: 400)
             } else {
-                VStack(spacing: 20) {
-                    // Chart with title
-                    VStack(alignment: .leading, spacing: 16) {
-                        Text("Trailing Twelve Months Earnings")
-                            .font(.headline)
-                            .frame(maxWidth: .infinity, alignment: .center)
+                ScrollView {
+                    VStack(spacing: 20) {
+                        // Chart with title
+                        VStack(alignment: .leading, spacing: 16) {
+                            Text("Trailing Twelve Months Earnings")
+                                .font(.headline)
+                                .frame(maxWidth: .infinity, alignment: .center)
 
-                        HStack(alignment: .center, spacing: 8) {
-                            // Fixed Y-axis on the left
-                            VStack(alignment: .trailing, spacing: 0) {
-                                ForEach(Array(getYAxisLabels().enumerated()), id: \.offset) { index, value in
-                                    Text(formatYAxisValue(value))
-                                        .font(.caption2)
-                                        .foregroundStyle(.secondary)
+                            GeometryReader { geometry in
+                                let availableWidth = geometry.size.width - ChartConstants.yAxisWidth - 16
+                                let barCount = CGFloat(displayData.count)
+                                let dynamicBarWidth = max((availableWidth - (barCount - 1) * ChartConstants.barSpacing) / barCount, 3)
 
-                                    if index < getYAxisLabels().count - 1 {
-                                        Spacer()
+                                HStack(alignment: .center, spacing: 8) {
+                                    // Fixed Y-axis on the left
+                                    VStack(alignment: .trailing, spacing: 0) {
+                                        ForEach(Array(getYAxisLabels().enumerated()), id: \.offset) { index, value in
+                                            Text(formatYAxisValue(value))
+                                                .font(.caption2)
+                                                .foregroundStyle(.secondary)
+
+                                            if index < getYAxisLabels().count - 1 {
+                                                Spacer()
+                                            }
+                                        }
                                     }
-                                }
-                            }
-                            .frame(width: ChartConstants.yAxisWidth, height: ChartConstants.chartHeight)
+                                    .frame(width: ChartConstants.yAxisWidth, height: ChartConstants.chartHeight)
 
-                            // Scrollable chart area
-                            ScrollView(.horizontal, showsIndicators: false) {
-                                ScrollViewReader { proxy in
+                                    // Chart area - no scrolling, all bars visible
                                     VStack(spacing: 0) {
                                         ZStack(alignment: .bottom) {
                                             VStack(spacing: 0) {
@@ -112,7 +112,7 @@ struct TTMEarningsChartView: View {
                                             }
                                             .frame(height: ChartConstants.chartHeight)
 
-                                            HStack(alignment: .bottom, spacing: 8) {
+                                            HStack(alignment: .bottom, spacing: ChartConstants.barSpacing) {
                                                 ForEach(Array(displayData.enumerated()), id: \.element.id) { index, point in
                                                     VStack(spacing: 4) {
                                                         if selectedBar == point.id {
@@ -137,7 +137,7 @@ struct TTMEarningsChartView: View {
                                                                     .fill(Color.purple)
                                                             )
                                                             .fixedSize()
-                                                            .offset(x: index == 0 ? 20 : (index == displayData.count - 1 ? -20 : 0))
+                                                            .offset(x: index < 3 ? 20 : (index >= displayData.count - 3 ? -20 : 0))
                                                             .transition(.opacity.combined(with: .scale))
                                                         } else {
                                                             // Empty spacer to maintain consistent height
@@ -147,9 +147,9 @@ struct TTMEarningsChartView: View {
 
                                                         Spacer(minLength: 0)
 
-                                                        RoundedRectangle(cornerRadius: 4)
+                                                        RoundedRectangle(cornerRadius: 2)
                                                             .fill(selectedBar == point.id ? Color.purple.opacity(0.8) : Color.purple)
-                                                            .frame(width: 24, height: barHeight(for: point.earnings, in: ChartConstants.barChartHeight))
+                                                            .frame(width: dynamicBarWidth, height: barHeight(for: point.earnings, in: ChartConstants.barChartHeight))
                                                             .onTapGesture {
                                                                 withAnimation(.easeInOut(duration: 0.2)) {
                                                                     if selectedBar == point.id {
@@ -160,42 +160,36 @@ struct TTMEarningsChartView: View {
                                                                 }
                                                             }
                                                     }
-                                                    .frame(width: 40, height: 290, alignment: .bottom)
+                                                    .frame(width: dynamicBarWidth, height: 290, alignment: .bottom)
                                                     .id(point.id)
                                                 }
                                             }
-                                            .padding(.horizontal, 40)
+                                            .padding(.horizontal, 4)
                                         }
 
-                                        // X-axis labels
-                                        HStack(alignment: .top, spacing: 8) {
-                                            ForEach(displayData) { point in
-                                                Text(formatDate(point.period))
-                                                    .font(.caption2)
+                                        // X-axis labels - show every 5th period for 37 bars (shows ~8 labels)
+                                        HStack(alignment: .top, spacing: ChartConstants.barSpacing) {
+                                            ForEach(Array(displayData.enumerated()), id: \.element.id) { index, point in
+                                                let shouldShowLabel = index % 5 == 0 || index == displayData.count - 1
+
+                                                Text(shouldShowLabel ? formatDate(point.period) : "")
+                                                    .font(.system(size: 8))
                                                     .foregroundStyle(.secondary)
-                                                    .frame(width: 40)
+                                                    .frame(width: dynamicBarWidth)
                                             }
                                         }
                                         .padding(.top, 4)
-                                        .padding(.horizontal, 40)
-                                    }
-                                    .onAppear {
-                                        // Scroll to the rightmost position (most recent period)
-                                        if let lastPeriod = displayData.last {
-                                            Task { @MainActor in
-                                                try? await Task.sleep(nanoseconds: UInt64(ChartConstants.scrollDelay * 1_000_000_000))
-                                                proxy.scrollTo(lastPeriod.id, anchor: .trailing)
-                                            }
-                                        }
+                                        .padding(.horizontal, 4)
                                     }
                                 }
                             }
+                            .frame(height: 340)
                         }
+                        .padding()
+                        .background(Color(uiColor: .systemBackground))
+                        .cornerRadius(12)
+                        .padding()
                     }
-                    .padding()
-                    .background(Color(uiColor: .systemBackground))
-                    .cornerRadius(12)
-                    .padding()
                 }
             }
         }
