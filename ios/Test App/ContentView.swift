@@ -1423,15 +1423,27 @@ struct StockDetailView: View {
             // Dropdown Menu
             Menu {
                 Button(action: { selectedTab = 0 }) {
-                    Label("Overview", systemImage: selectedTab == 0 ? "checkmark" : "")
+                    if selectedTab == 0 {
+                        Label("Overview", systemImage: "checkmark")
+                    } else {
+                        Text("Overview")
+                    }
                 }
 
                 Button(action: { selectedTab = 1 }) {
-                    Label("Revenue", systemImage: selectedTab == 1 ? "checkmark" : "")
+                    if selectedTab == 1 {
+                        Label("Revenue", systemImage: "checkmark")
+                    } else {
+                        Text("Revenue")
+                    }
                 }
 
                 Button(action: { selectedTab = 2 }) {
-                    Label("Earnings", systemImage: selectedTab == 2 ? "checkmark" : "")
+                    if selectedTab == 2 {
+                        Label("Earnings", systemImage: "checkmark")
+                    } else {
+                        Text("Earnings")
+                    }
                 }
             } label: {
                 HStack {
