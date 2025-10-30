@@ -311,6 +311,7 @@ function extractRevenue(facts) {
 /**
  * Extract TTM revenue (last 37 periods)
  * TTM = Trailing Twelve Months, calculated as rolling 4-quarter sum
+ * Period is labeled with the most recent quarter in the sum
  */
 function extractTTMRevenue(facts) {
   // First get quarterly data
@@ -324,7 +325,7 @@ function extractTTMRevenue(facts) {
     const ttmRevenue = last4Quarters.reduce((sum, q) => sum + q.revenue, 0);
 
     ttm.push({
-      period: quarterly[i].period,
+      period: quarterly[i - 3].period,  // Use most recent quarter, not oldest
       revenue: ttmRevenue
     });
   }
@@ -431,6 +432,7 @@ function extractEarnings(facts) {
 /**
  * Extract TTM earnings (last 37 periods)
  * TTM = Trailing Twelve Months, calculated as rolling 4-quarter sum
+ * Period is labeled with the most recent quarter in the sum
  */
 function extractTTMEarnings(facts) {
   // First get quarterly data
@@ -444,7 +446,7 @@ function extractTTMEarnings(facts) {
     const ttmEarnings = last4Quarters.reduce((sum, q) => sum + q.earnings, 0);
 
     ttm.push({
-      period: quarterly[i].period,
+      period: quarterly[i - 3].period,  // Use most recent quarter, not oldest
       earnings: ttmEarnings
     });
   }

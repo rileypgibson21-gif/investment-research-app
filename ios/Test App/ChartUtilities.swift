@@ -14,13 +14,25 @@ enum ChartUtilities {
 
     /// Formats a date string to quarter format (e.g., "Q1 '24")
     /// Handles multiple formats: YYYY-MM-DD, YYYY-MM, or direct quarter strings
+    /// NOTE: SEC filing dates in early month (days 1-7) represent the END of the previous month's quarter
+    /// For example, "2023-07-01" is the filing date for Q2 (ending June 30), not Q3
     static func formatQuarterDate(_ dateString: String) -> String {
         // Handle YYYY-MM-DD or YYYY-MM format
         let components = dateString.split(separator: "-")
         guard components.count >= 2,
               let year = components.first,
-              let month = Int(components[1]) else {
+              var month = Int(components[1]) else {
             return dateString
+        }
+
+        // If the date is in the first week of the month (days 1-7), it likely represents
+        // a filing date for the previous month's quarter end
+        // Example: 2023-07-01 = filing for Q2 ending June 30
+        if components.count >= 3, let day = Int(components[2]), day <= 7 {
+            month -= 1
+            if month == 0 {
+                month = 12
+            }
         }
 
         // Calculate quarter from month (1-12 -> Q1-Q4)
