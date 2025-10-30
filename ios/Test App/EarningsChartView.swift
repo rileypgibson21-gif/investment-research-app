@@ -150,13 +150,13 @@ struct EarningsChartView: View {
                                             .padding(.horizontal, 4)
                                         }
 
-                                        // X-axis labels - show every 5th quarter for 40 bars (shows ~8 labels)
+                                        // X-axis labels - show every 10th quarter for 40 bars (shows ~4-5 year labels)
                                         HStack(alignment: .top, spacing: ChartConstants.barSpacing) {
                                             ForEach(Array(displayData.enumerated()), id: \.element.id) { index, point in
-                                                let shouldShowLabel = index % 5 == 0 || index == displayData.count - 1
+                                                let shouldShowLabel = index % 10 == 0 || index == displayData.count - 1
 
-                                                Text(shouldShowLabel ? formatDate(point.period) : "")
-                                                    .font(.system(size: 8))
+                                                Text(shouldShowLabel ? formatYearLabel(point.period) : "")
+                                                    .font(.system(size: 9))
                                                     .foregroundStyle(.secondary)
                                                     .frame(width: dynamicBarWidth)
                                             }
@@ -214,6 +214,10 @@ struct EarningsChartView: View {
 
     private func formatDate(_ dateString: String) -> String {
         ChartUtilities.formatQuarterDate(dateString)
+    }
+
+    private func formatYearLabel(_ dateString: String) -> String {
+        ChartUtilities.formatYearOnly(dateString)
     }
 
     private func formatDetailedValue(_ value: Double) -> String {

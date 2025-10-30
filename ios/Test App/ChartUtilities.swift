@@ -51,6 +51,17 @@ enum ChartUtilities {
         return "\(monthName) '\(shortYear) (Q\(quarter))"
     }
 
+    /// Formats a date string to year only (e.g., "'24")
+    /// Used for X-axis labels where space is limited
+    static func formatYearOnly(_ dateString: String) -> String {
+        let components = dateString.split(separator: "-")
+        guard let year = components.first else {
+            return dateString
+        }
+        let shortYear = year.suffix(2)
+        return "'\(shortYear)"
+    }
+
     // MARK: - Value Formatting
 
     /// Formats a revenue/currency value with appropriate suffix (T, B, M, K)
