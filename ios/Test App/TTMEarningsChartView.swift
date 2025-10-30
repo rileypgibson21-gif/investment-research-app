@@ -23,13 +23,23 @@ struct TTMEarningsChartView: View {
         return Array(sorted.suffix(ChartConstants.ttmDataLimit))
     }
 
-    var maxEarnings: Double {
-        let actualMax = displayData.map { $0.earnings }.max() ?? 0
-        return ChartUtilities.roundToNiceNumber(actualMax * 1.05)
+    var earningsRange: (min: Double, max: Double) {
+        let values = displayData.map { $0.earnings }
+        return ChartUtilities.calculateAdaptiveRange(values: values)
     }
 
     private func getYAxisLabels() -> [Double] {
-        ChartUtilities.generateYAxisLabels(maxValue: maxEarnings)
+        let range = earningsRange
+        return ChartUtilities.generateYAxisLabels(minValue: range.min, maxValue: range.max)
+    }
+
+    /// Calculate the Y position where zero line sits (as fraction of chart height from bottom)
+    private var zeroLinePosition: CGFloat {
+        let range = earningsRange
+        let totalRange = range.max - range.min
+        guard totalRange > 0 else { return 0 }
+        // Zero position as fraction from bottom: -min / totalRange
+        return CGFloat(-range.min / totalRange)
     }
 
     var body: some View {
@@ -114,6 +124,9 @@ struct TTMEarningsChartView: View {
 
                                             HStack(alignment: .bottom, spacing: ChartConstants.barSpacing) {
                                                 ForEach(Array(displayData.enumerated()), id: \.element.id) { index, point in
+                                                    let heightValue = barHeight(for: point.earnings, in: ChartConstants.chartHeight)
+                                                    let offsetValue = barOffset(for: point.earnings, barHeight: heightValue, in: ChartConstants.chartHeight)
+
                                                     VStack(spacing: 4) {
                                                         if selectedBar == point.id {
                                                             VStack(spacing: 2) {
@@ -147,18 +160,25 @@ struct TTMEarningsChartView: View {
 
                                                         Spacer(minLength: 0)
 
-                                                        RoundedRectangle(cornerRadius: 2)
-                                                            .fill(selectedBar == point.id ? Color.purple.opacity(0.8) : Color.purple)
-                                                            .frame(width: dynamicBarWidth, height: barHeight(for: point.earnings, in: ChartConstants.barChartHeight))
-                                                            .onTapGesture {
-                                                                withAnimation(.easeInOut(duration: 0.2)) {
-                                                                    if selectedBar == point.id {
-                                                                        selectedBar = nil
-                                                                    } else {
-                                                                        selectedBar = point.id
+                                                        // Bar positioned at zero line
+                                                        ZStack(alignment: .bottom) {
+                                                            Color.clear
+                                                                .frame(height: ChartConstants.chartHeight)
+
+                                                            RoundedRectangle(cornerRadius: 2)
+                                                                .fill(selectedBar == point.id ? Color.purple.opacity(0.8) : Color.purple)
+                                                                .frame(width: dynamicBarWidth, height: heightValue)
+                                                                .offset(y: -offsetValue)
+                                                                .onTapGesture {
+                                                                    withAnimation(.easeInOut(duration: 0.2)) {
+                                                                        if selectedBar == point.id {
+                                                                            selectedBar = nil
+                                                                        } else {
+                                                                            selectedBar = point.id
+                                                                        }
                                                                     }
                                                                 }
-                                                            }
+                                                        }
                                                     }
                                                     .frame(width: dynamicBarWidth, height: 290, alignment: .bottom)
                                                     .id(point.id)
@@ -226,9 +246,26 @@ struct TTMEarningsChartView: View {
     }
 
     private func barHeight(for value: Double, in maxHeight: CGFloat) -> CGFloat {
-        guard maxEarnings > 0 else { return 4 }
-        let normalized = value / maxEarnings
-        return maxHeight * normalized
+        let range = earningsRange
+        let totalRange = range.max - range.min
+        guard totalRange > 0 else { return 4 }
+
+        // Normalize value to 0-1 range based on total chart range
+        let normalized = abs(value) / totalRange
+        return max(maxHeight * normalized, 2) // Minimum 2px for visibility
+    }
+
+    /// Calculate the offset from bottom for a bar value
+    private func barOffset(for value: Double, barHeight: CGFloat, in chartHeight: CGFloat) -> CGFloat {
+        let zeroY = chartHeight * zeroLinePosition
+
+        if value >= 0 {
+            // Positive values: bar sits on zero line, grows upward
+            return zeroY
+        } else {
+            // Negative values: bar grows downward from zero line
+            return zeroY - barHeight
+        }
     }
 
     private func formatDate(_ dateString: String) -> String {

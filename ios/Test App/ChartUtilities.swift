@@ -149,9 +149,41 @@ enum ChartUtilities {
         }
     }
 
+    /// Calculate Y-axis range that adapts to data
+    /// - All positive values: returns (0, maxValue) - Y-axis starts at zero
+    /// - Has negative values: returns (minValue, maxValue) - Y-axis extends below zero
+    static func calculateAdaptiveRange(values: [Double]) -> (min: Double, max: Double) {
+        guard !values.isEmpty else { return (0, 0) }
+
+        let minValue = values.min() ?? 0
+        let maxValue = values.max() ?? 0
+
+        if minValue >= 0 {
+            // All positive: scale from 0 to nice max (current behavior)
+            return (0, roundToNiceNumber(maxValue * 1.05))
+        } else {
+            // Has negatives: scale to include both min and max
+            let niceMin = -roundToNiceNumber(abs(minValue) * 1.05)
+            let niceMax = roundToNiceNumber(max(maxValue, 0) * 1.05)
+            return (niceMin, niceMax)
+        }
+    }
+
     /// Generates Y-axis labels with equal intervals
     static func generateYAxisLabels(maxValue: Double, divisions: Int = 4) -> [Double] {
         let interval = maxValue / Double(divisions)
+        var labels: [Double] = []
+
+        for i in 0...divisions {
+            labels.append(maxValue - (interval * Double(i)))
+        }
+
+        return labels
+    }
+
+    /// Generates Y-axis labels for a range (supports negative values)
+    static func generateYAxisLabels(minValue: Double, maxValue: Double, divisions: Int = 4) -> [Double] {
+        let interval = (maxValue - minValue) / Double(divisions)
         var labels: [Double] = []
 
         for i in 0...divisions {
