@@ -176,6 +176,8 @@ struct TTMEarningsChartView: View {
                                                     .font(.system(size: 9))
                                                     .foregroundStyle(.secondary)
                                                     .frame(width: dynamicBarWidth)
+                                                    .lineLimit(1)
+                                                    .minimumScaleFactor(0.5)
                                             }
                                         }
                                         .padding(.top, 4)
