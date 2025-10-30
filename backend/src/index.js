@@ -210,50 +210,59 @@ async function getCIK(symbol, env) {
 /**
  * Extract quarterly revenue (last 40 quarters = 10 years)
  * Identifies quarterly data by period duration (~3 months = quarterly)
+ * Combines data from multiple revenue keys to get complete history
  */
 function extractRevenue(facts) {
   const revenueKeys = [
-    'Revenues',
-    'RevenueFromContractWithCustomerExcludingAssessedTax',
-    'SalesRevenueNet',
-    'RevenueFromContractWithCustomer'
+    'RevenueFromContractWithCustomerExcludingAssessedTax', // Most recent (2017-present)
+    'RevenueFromContractWithCustomer',
+    'SalesRevenueNet',                                       // Older (2008-2018)
+    'Revenues'                                                // Oldest
   ];
+
+  // Collect quarterly data from all available keys
+  const allQuarterly = [];
 
   for (const key of revenueKeys) {
     if (facts.facts['us-gaap'] && facts.facts['us-gaap'][key]) {
-      const units = facts.facts['us-gaap'][key].units.USD;
+      const units = facts.facts['us-gaap'][key].units?.USD;
       if (!units) continue;
 
       // Filter for quarterly data (period duration ~3 months)
-      const quarterly = units
-        .filter(item => {
-          if (!item.val || item.val <= 0 || !item.start || !item.end) return false;
+      const quarterly = units.filter(item => {
+        if (!item.val || item.val <= 0 || !item.start || !item.end) return false;
 
-          // Calculate period duration in days
-          const startDate = new Date(item.start);
-          const endDate = new Date(item.end);
-          const daysDiff = (endDate - startDate) / (1000 * 60 * 60 * 24);
+        // Calculate period duration in days
+        const startDate = new Date(item.start);
+        const endDate = new Date(item.end);
+        const daysDiff = (endDate - startDate) / (1000 * 60 * 60 * 24);
 
-          // Quarterly data should be 70-120 days (roughly 3 months, allowing for variation)
-          return daysDiff >= 70 && daysDiff <= 120;
-        })
-        .sort((a, b) => b.end.localeCompare(a.end))
-        .reduce((acc, item) => {
-          // Deduplicate by end date, keeping first occurrence (most recent filing)
-          if (!acc.find(x => x.period === item.end)) {
-            acc.push({ period: item.end, revenue: item.val });
-          }
-          return acc;
-        }, [])
-        .slice(0, 40);
+        // Quarterly data should be 70-120 days (roughly 3 months, allowing for variation)
+        // Includes data from both 10-Q (Q1, Q2, Q3) and 10-K (Q4)
+        return daysDiff >= 70 && daysDiff <= 120;
+      });
 
-      if (quarterly.length > 0) {
-        return quarterly;
-      }
+      allQuarterly.push(...quarterly);
     }
   }
 
-  return [];
+  if (allQuarterly.length === 0) {
+    return [];
+  }
+
+  // Sort by end date descending (most recent first)
+  // Then deduplicate by end date, keeping the first occurrence (most recent filing)
+  const deduplicated = allQuarterly
+    .sort((a, b) => b.end.localeCompare(a.end))
+    .reduce((acc, item) => {
+      if (!acc.find(x => x.period === item.end)) {
+        acc.push({ period: item.end, revenue: item.val });
+      }
+      return acc;
+    }, []);
+
+  // Return most recent 40 quarters (10 years)
+  return deduplicated.slice(0, 40);
 }
 
 /**
@@ -283,6 +292,7 @@ function extractTTMRevenue(facts) {
 /**
  * Extract quarterly earnings (last 40 quarters = 10 years)
  * Identifies quarterly data by period duration (~3 months = quarterly)
+ * Combines data from multiple earnings keys to get complete history
  */
 function extractEarnings(facts) {
   const earningsKeys = [
@@ -291,41 +301,49 @@ function extractEarnings(facts) {
     'NetIncomeLossAvailableToCommonStockholdersBasic'
   ];
 
+  // Collect quarterly data from all available keys
+  const allQuarterly = [];
+
   for (const key of earningsKeys) {
     if (facts.facts['us-gaap'] && facts.facts['us-gaap'][key]) {
-      const units = facts.facts['us-gaap'][key].units.USD;
+      const units = facts.facts['us-gaap'][key].units?.USD;
       if (!units) continue;
 
       // Filter for quarterly data (period duration ~3 months)
-      const quarterly = units
-        .filter(item => {
-          if (!item.val || item.val === 0 || !item.start || !item.end) return false;
+      const quarterly = units.filter(item => {
+        if (!item.val || item.val === 0 || !item.start || !item.end) return false;
 
-          // Calculate period duration in days
-          const startDate = new Date(item.start);
-          const endDate = new Date(item.end);
-          const daysDiff = (endDate - startDate) / (1000 * 60 * 60 * 24);
+        // Calculate period duration in days
+        const startDate = new Date(item.start);
+        const endDate = new Date(item.end);
+        const daysDiff = (endDate - startDate) / (1000 * 60 * 60 * 24);
 
-          // Quarterly data should be 70-120 days (roughly 3 months, allowing for variation)
-          return daysDiff >= 70 && daysDiff <= 120;
-        })
-        .sort((a, b) => b.end.localeCompare(a.end))
-        .reduce((acc, item) => {
-          // Deduplicate by end date, keeping first occurrence (most recent filing)
-          if (!acc.find(x => x.period === item.end)) {
-            acc.push({ period: item.end, earnings: item.val });
-          }
-          return acc;
-        }, [])
-        .slice(0, 40);
+        // Quarterly data should be 70-120 days (roughly 3 months, allowing for variation)
+        // Includes data from both 10-Q (Q1, Q2, Q3) and 10-K (Q4)
+        return daysDiff >= 70 && daysDiff <= 120;
+      });
 
-      if (quarterly.length > 0) {
-        return quarterly;
-      }
+      allQuarterly.push(...quarterly);
     }
   }
 
-  return [];
+  if (allQuarterly.length === 0) {
+    return [];
+  }
+
+  // Sort by end date descending (most recent first)
+  // Then deduplicate by end date, keeping the first occurrence (most recent filing)
+  const deduplicated = allQuarterly
+    .sort((a, b) => b.end.localeCompare(a.end))
+    .reduce((acc, item) => {
+      if (!acc.find(x => x.period === item.end)) {
+        acc.push({ period: item.end, earnings: item.val });
+      }
+      return acc;
+    }, []);
+
+  // Return most recent 40 quarters (10 years)
+  return deduplicated.slice(0, 40);
 }
 
 /**
