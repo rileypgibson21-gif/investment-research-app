@@ -1,15 +1,12 @@
 /**
- * Cloudflare Worker - Stock Market Data API Proxy
- * Uses Marketstack API for price data with caching
+ * Cloudflare Worker - SEC EDGAR Data API
+ * Free financial data from SEC filings with intelligent caching
  */
 
-const MARKETSTACK_BASE_URL = 'http://api.marketstack.com/v1';
 const SEC_BASE_URL = 'https://data.sec.gov';
 const CACHE_TTL = {
-  QUOTE: 60,        // 1 minute for real-time quotes
-  EOD: 3600,        // 1 hour for end-of-day data
-  INTRADAY: 300,    // 5 minutes for intraday
-  SEC_DATA: 86400   // 24 hours for SEC data (updates quarterly)
+  COMPANY_FACTS: 86400,  // 24 hours - raw SEC data
+  CIK_LOOKUP: 604800     // 7 days - ticker to CIK mapping rarely changes
 };
 
 // CORS headers for iOS app
@@ -19,6 +16,11 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Headers': 'Content-Type',
   'Content-Type': 'application/json'
 };
+
+// User-Agent for SEC API compliance
+// SEC requires a valid User-Agent identifying your app and contact
+// TODO: Replace with your actual contact email before App Store submission
+const USER_AGENT = 'SEC-Research-iOS-App/2.0 (contact@yourapp.com)';
 
 export default {
   async fetch(request, env, ctx) {
@@ -30,16 +32,8 @@ export default {
     }
 
     try {
-      // Route handling
-      if (url.pathname.startsWith('/api/profile/')) {
-        return await handleProfile(request, env, url);
-      } else if (url.pathname.startsWith('/api/quote/')) {
-        return await handleQuote(request, env, url);
-      } else if (url.pathname.startsWith('/api/eod/')) {
-        return await handleEOD(request, env, url);
-      } else if (url.pathname.startsWith('/api/intraday/')) {
-        return await handleIntraday(request, env, url);
-      } else if (url.pathname.startsWith('/api/revenue-ttm/')) {
+      // Route handling - SEC data only
+      if (url.pathname.startsWith('/api/revenue-ttm/')) {
         return await handleTTMRevenue(request, env, url);
       } else if (url.pathname.startsWith('/api/revenue/')) {
         return await handleRevenue(request, env, url);
@@ -48,7 +42,12 @@ export default {
       } else if (url.pathname.startsWith('/api/earnings/')) {
         return await handleEarnings(request, env, url);
       } else if (url.pathname === '/api/health') {
-        return jsonResponse({ status: 'healthy', timestamp: new Date().toISOString() });
+        return jsonResponse({
+          status: 'healthy',
+          timestamp: new Date().toISOString(),
+          dataSource: 'SEC EDGAR API',
+          cost: 'free'
+        });
       } else {
         return jsonResponse({ error: 'Not found' }, 404);
       }
@@ -60,205 +59,6 @@ export default {
 };
 
 /**
- * Handle stock profile/company info
- * GET /api/profile/:symbol
- */
-async function handleProfile(request, env, url) {
-  const symbol = url.pathname.split('/').pop().toUpperCase();
-  if (!symbol) {
-    return jsonResponse({ error: 'Symbol required' }, 400);
-  }
-
-  // Check cache
-  const cacheKey = `profile:${symbol}`;
-  const cached = await getCache(env, cacheKey);
-  if (cached) {
-    return jsonResponse(cached, 200, { 'X-Cache': 'HIT' });
-  }
-
-  // Fetch from Marketstack - tickers endpoint
-  const marketstackUrl = `${MARKETSTACK_BASE_URL}/tickers/${symbol}?access_key=${env.MARKETSTACK_API_KEY}`;
-
-  const response = await fetch(marketstackUrl);
-  if (!response.ok) {
-    return jsonResponse({ error: 'Symbol not found' }, 404);
-  }
-
-  const data = await response.json();
-
-  // Transform to match iOS app StockProfile format
-  const result = {
-    name: data.name || symbol,
-    ticker: data.symbol || symbol,
-    marketCapitalization: data.market_cap || null,
-    shareOutstanding: null, // Marketstack doesn't provide this
-    logo: null,
-    country: data.stock_exchange?.country || null,
-    currency: data.stock_exchange?.currency || null,
-    exchange: data.stock_exchange?.name || data.stock_exchange?.acronym || null,
-    ipo: null,
-    industry: null,
-    weburl: null
-  };
-
-  // Cache for 24 hours (company info doesn't change often)
-  await setCache(env, cacheKey, result, 86400);
-  return jsonResponse(result, 200, { 'X-Cache': 'MISS' });
-}
-
-/**
- * Handle real-time stock quote
- * GET /api/quote/:symbol
- */
-async function handleQuote(request, env, url) {
-  const symbol = url.pathname.split('/').pop().toUpperCase();
-  if (!symbol) {
-    return jsonResponse({ error: 'Symbol required' }, 400);
-  }
-
-  // Check cache
-  const cacheKey = `quote:${symbol}`;
-  const cached = await getCache(env, cacheKey);
-  if (cached) {
-    return jsonResponse(cached, 200, { 'X-Cache': 'HIT' });
-  }
-
-  // Fetch from Marketstack - latest endpoint
-  const marketstackUrl = `${MARKETSTACK_BASE_URL}/eod/latest?access_key=${env.MARKETSTACK_API_KEY}&symbols=${symbol}`;
-
-  const response = await fetch(marketstackUrl);
-  if (!response.ok) {
-    throw new Error(`Marketstack API error: ${response.status}`);
-  }
-
-  const data = await response.json();
-
-  if (!data.data || data.data.length === 0) {
-    return jsonResponse({ error: 'Symbol not found' }, 404);
-  }
-
-  const quote = data.data[0];
-
-  // Transform to match iOS app format
-  const result = {
-    symbol: quote.symbol,
-    currentPrice: quote.close,
-    open: quote.open,
-    high: quote.high,
-    low: quote.low,
-    volume: quote.volume,
-    previousClose: quote.close, // Marketstack EOD doesn't have previous, use close
-    change: quote.close - quote.open,
-    changePercent: ((quote.close - quote.open) / quote.open) * 100,
-    date: quote.date
-  };
-
-  // Cache the result
-  await setCache(env, cacheKey, result, CACHE_TTL.QUOTE);
-
-  return jsonResponse(result, 200, { 'X-Cache': 'MISS' });
-}
-
-/**
- * Handle end-of-day historical data
- * GET /api/eod/:symbol?limit=30
- */
-async function handleEOD(request, env, url) {
-  const symbol = url.pathname.split('/').pop().toUpperCase();
-  const limit = url.searchParams.get('limit') || '30';
-
-  if (!symbol) {
-    return jsonResponse({ error: 'Symbol required' }, 400);
-  }
-
-  // Check cache
-  const cacheKey = `eod:${symbol}:${limit}`;
-  const cached = await getCache(env, cacheKey);
-  if (cached) {
-    return jsonResponse(cached, 200, { 'X-Cache': 'HIT' });
-  }
-
-  // Fetch from Marketstack
-  const marketstackUrl = `${MARKETSTACK_BASE_URL}/eod?access_key=${env.MARKETSTACK_API_KEY}&symbols=${symbol}&limit=${limit}`;
-
-  const response = await fetch(marketstackUrl);
-  if (!response.ok) {
-    throw new Error(`Marketstack API error: ${response.status}`);
-  }
-
-  const data = await response.json();
-
-  if (!data.data || data.data.length === 0) {
-    return jsonResponse({ error: 'No data found' }, 404);
-  }
-
-  // Transform to simpler format
-  const result = data.data.map(item => ({
-    date: item.date,
-    open: item.open,
-    high: item.high,
-    low: item.low,
-    close: item.close,
-    volume: item.volume,
-    adjClose: item.adj_close || item.close
-  }));
-
-  // Cache the result
-  await setCache(env, cacheKey, result, CACHE_TTL.EOD);
-
-  return jsonResponse(result, 200, { 'X-Cache': 'MISS' });
-}
-
-/**
- * Handle intraday data
- * GET /api/intraday/:symbol?interval=1min
- */
-async function handleIntraday(request, env, url) {
-  const symbol = url.pathname.split('/').pop().toUpperCase();
-  const interval = url.searchParams.get('interval') || '1min';
-
-  if (!symbol) {
-    return jsonResponse({ error: 'Symbol required' }, 400);
-  }
-
-  // Check cache
-  const cacheKey = `intraday:${symbol}:${interval}`;
-  const cached = await getCache(env, cacheKey);
-  if (cached) {
-    return jsonResponse(cached, 200, { 'X-Cache': 'HIT' });
-  }
-
-  // Fetch from Marketstack intraday endpoint
-  const marketstackUrl = `${MARKETSTACK_BASE_URL}/intraday/latest?access_key=${env.MARKETSTACK_API_KEY}&symbols=${symbol}&interval=${interval}&limit=100`;
-
-  const response = await fetch(marketstackUrl);
-  if (!response.ok) {
-    throw new Error(`Marketstack API error: ${response.status}`);
-  }
-
-  const data = await response.json();
-
-  if (!data.data || data.data.length === 0) {
-    return jsonResponse({ error: 'No data found' }, 404);
-  }
-
-  // Transform to simpler format
-  const result = data.data.map(item => ({
-    date: item.date,
-    open: item.open,
-    high: item.high,
-    low: item.low,
-    close: item.close,
-    volume: item.volume
-  }));
-
-  // Cache the result
-  await setCache(env, cacheKey, result, CACHE_TTL.INTRADAY);
-
-  return jsonResponse(result, 200, { 'X-Cache': 'MISS' });
-}
-
-/**
  * Handle quarterly revenue from SEC EDGAR
  * GET /api/revenue/:symbol
  */
@@ -268,19 +68,10 @@ async function handleRevenue(request, env, url) {
     return jsonResponse({ error: 'Symbol required' }, 400);
   }
 
-  const cacheKey = `revenue:${symbol}`;
-  const cached = await getCache(env, cacheKey);
-  if (cached) {
-    return jsonResponse(cached, 200, { 'X-Cache': 'HIT' });
-  }
-
   try {
-    const cik = await getCIK(symbol);
-    const facts = await getCompanyFacts(cik);
+    const facts = await getCompanyFacts(symbol, env);
     const revenue = extractRevenue(facts);
-
-    await setCache(env, cacheKey, revenue, CACHE_TTL.SEC_DATA);
-    return jsonResponse(revenue, 200, { 'X-Cache': 'MISS' });
+    return jsonResponse(revenue);
   } catch (error) {
     return jsonResponse({ error: error.message }, 404);
   }
@@ -296,19 +87,10 @@ async function handleTTMRevenue(request, env, url) {
     return jsonResponse({ error: 'Symbol required' }, 400);
   }
 
-  const cacheKey = `revenue-ttm:${symbol}`;
-  const cached = await getCache(env, cacheKey);
-  if (cached) {
-    return jsonResponse(cached, 200, { 'X-Cache': 'HIT' });
-  }
-
   try {
-    const cik = await getCIK(symbol);
-    const facts = await getCompanyFacts(cik);
+    const facts = await getCompanyFacts(symbol, env);
     const revenue = extractTTMRevenue(facts);
-
-    await setCache(env, cacheKey, revenue, CACHE_TTL.SEC_DATA);
-    return jsonResponse(revenue, 200, { 'X-Cache': 'MISS' });
+    return jsonResponse(revenue);
   } catch (error) {
     return jsonResponse({ error: error.message }, 404);
   }
@@ -324,19 +106,10 @@ async function handleEarnings(request, env, url) {
     return jsonResponse({ error: 'Symbol required' }, 400);
   }
 
-  const cacheKey = `earnings:${symbol}`;
-  const cached = await getCache(env, cacheKey);
-  if (cached) {
-    return jsonResponse(cached, 200, { 'X-Cache': 'HIT' });
-  }
-
   try {
-    const cik = await getCIK(symbol);
-    const facts = await getCompanyFacts(cik);
+    const facts = await getCompanyFacts(symbol, env);
     const earnings = extractEarnings(facts);
-
-    await setCache(env, cacheKey, earnings, CACHE_TTL.SEC_DATA);
-    return jsonResponse(earnings, 200, { 'X-Cache': 'MISS' });
+    return jsonResponse(earnings);
   } catch (error) {
     return jsonResponse({ error: error.message }, 404);
   }
@@ -352,64 +125,86 @@ async function handleTTMEarnings(request, env, url) {
     return jsonResponse({ error: 'Symbol required' }, 400);
   }
 
-  const cacheKey = `earnings-ttm:${symbol}`;
-  const cached = await getCache(env, cacheKey);
-  if (cached) {
-    return jsonResponse(cached, 200, { 'X-Cache': 'HIT' });
-  }
-
   try {
-    const cik = await getCIK(symbol);
-    const facts = await getCompanyFacts(cik);
+    const facts = await getCompanyFacts(symbol, env);
     const earnings = extractTTMEarnings(facts);
-
-    await setCache(env, cacheKey, earnings, CACHE_TTL.SEC_DATA);
-    return jsonResponse(earnings, 200, { 'X-Cache': 'MISS' });
+    return jsonResponse(earnings);
   } catch (error) {
     return jsonResponse({ error: error.message }, 404);
   }
 }
 
 /**
- * Get CIK from ticker symbol
+ * Get company facts from SEC EDGAR with caching
+ * This is the ONLY function that fetches from SEC API
+ * All endpoints share this cached data
  */
-async function getCIK(symbol) {
-  const response = await fetch('https://www.sec.gov/files/company_tickers.json', {
+async function getCompanyFacts(symbol, env) {
+  // Check if companyfacts are already cached
+  const cacheKey = `companyfacts:${symbol}`;
+  const cached = await getCache(env, cacheKey);
+
+  if (cached) {
+    return cached;
+  }
+
+  // Cache miss - fetch from SEC
+  const cik = await getCIK(symbol, env);
+  const response = await fetch(`${SEC_BASE_URL}/api/xbrl/companyfacts/CIK${cik}.json`, {
     headers: {
-      'User-Agent': 'Investment Research App support@yourcompany.com'
+      'User-Agent': USER_AGENT
     }
   });
 
   if (!response.ok) {
-    throw new Error('Failed to fetch company tickers');
+    throw new Error('Failed to fetch company facts from SEC');
+  }
+
+  const facts = await response.json();
+
+  // Cache the raw facts for 24 hours
+  await setCache(env, cacheKey, facts, CACHE_TTL.COMPANY_FACTS);
+
+  return facts;
+}
+
+/**
+ * Get CIK from ticker symbol with caching
+ */
+async function getCIK(symbol, env) {
+  // Check cache first
+  const cacheKey = `cik:${symbol}`;
+  const cached = await getCache(env, cacheKey);
+
+  if (cached) {
+    return cached;
+  }
+
+  // Fetch ticker to CIK mapping from SEC
+  const response = await fetch('https://www.sec.gov/files/company_tickers.json', {
+    headers: {
+      'User-Agent': USER_AGENT
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch company tickers from SEC');
   }
 
   const tickers = await response.json();
 
   for (const key in tickers) {
     if (tickers[key].ticker === symbol) {
-      return String(tickers[key].cik_str).padStart(10, '0');
+      const cik = String(tickers[key].cik_str).padStart(10, '0');
+
+      // Cache CIK for 7 days (rarely changes)
+      await setCache(env, cacheKey, cik, CACHE_TTL.CIK_LOOKUP);
+
+      return cik;
     }
   }
 
-  throw new Error('Company not found');
-}
-
-/**
- * Get company facts from SEC EDGAR
- */
-async function getCompanyFacts(cik) {
-  const response = await fetch(`${SEC_BASE_URL}/api/xbrl/companyfacts/CIK${cik}.json`, {
-    headers: {
-      'User-Agent': 'Investment Research App support@yourcompany.com'
-    }
-  });
-
-  if (!response.ok) {
-    throw new Error('Failed to fetch company facts');
-  }
-
-  return await response.json();
+  throw new Error(`Company not found for ticker: ${symbol}`);
 }
 
 /**
@@ -558,7 +353,7 @@ function extractTTMEarnings(facts) {
 }
 
 /**
- * Get data from cache (KV or in-memory fallback)
+ * Get data from cache (KV)
  */
 async function getCache(env, key) {
   try {

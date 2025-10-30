@@ -10,31 +10,12 @@ private enum APIConstants {
 class StockAPIService {
     private let apiBaseURL = APIConstants.cloudflareBaseURL
     
-    // MARK: - Company Profile (From Your API)
-    func searchStock(symbol: String) async throws -> StockProfile {
-        let urlString = "\(apiBaseURL)/api/profile/\(symbol.uppercased())"
-        guard let url = URL(string: urlString) else {
-            throw APIError.invalidURL
-        }
-
-        let (data, _) = try await URLSession.shared.data(from: url)
-        return try JSONDecoder().decode(StockProfile.self, from: data)
-    }
-
-    // MARK: - Stock Quote (Price Data)
-    func fetchQuote(symbol: String) async throws -> StockQuote {
-        let urlString = "\(apiBaseURL)/api/quote/\(symbol.uppercased())"
-        guard let url = URL(string: urlString) else {
-            throw APIError.invalidURL
-        }
-
-        let (data, _) = try await URLSession.shared.data(from: url)
-        return try JSONDecoder().decode(StockQuote.self, from: data)
-    }
-
-    // MARK: - Market News (Placeholder)
-    func fetchMarketNews() async throws -> [NewsArticle] {
-        return []
+    // MARK: - Basic Company Info (For add stock search)
+    // Uses SEC data to verify ticker exists
+    func searchStock(symbol: String) async throws -> String {
+        // Just verify the symbol exists by trying to fetch revenue data
+        let _ = try await fetchRevenue(symbol: symbol)
+        return symbol.uppercased()
     }
     
     // MARK: - Revenue Data (From Your API)
@@ -1203,18 +1184,12 @@ struct MarketNewsView: View {
     
     private func loadNews() {
         isLoading = true
-        
+
         Task {
-            do {
-                let articles = try await apiService.fetchMarketNews()
-                await MainActor.run {
-                    newsArticles = articles
-                    isLoading = false
-                }
-            } catch {
-                await MainActor.run {
-                    isLoading = false
-                }
+            // News feature removed - SEC data only
+            await MainActor.run {
+                newsArticles = []
+                isLoading = false
             }
         }
     }
@@ -1397,15 +1372,16 @@ struct AddStockView: View {
 
         Task {
             do {
-                let profile = try await apiService.searchStock(symbol: symbol)
+                let validatedSymbol = try await apiService.searchStock(symbol: symbol)
 
                 await MainActor.run {
-                    name = profile.name
+                    symbol = validatedSymbol
+                    name = validatedSymbol // Use symbol as name (SEC data doesn't provide company name easily)
                     isSearching = false
                 }
             } catch {
                 await MainActor.run {
-                    searchError = "Stock not found or API error"
+                    searchError = "Stock not found in SEC database or no revenue data available"
                     isSearching = false
                 }
             }
@@ -1445,19 +1421,15 @@ struct StockDetailView: View {
                 }
 
                 Button(action: { selectedTab = 1 }) {
-                    Label("Price Chart", systemImage: selectedTab == 1 ? "checkmark" : "")
+                    Label("Revenue", systemImage: selectedTab == 1 ? "checkmark" : "")
                 }
 
                 Button(action: { selectedTab = 2 }) {
-                    Label("Revenue", systemImage: selectedTab == 2 ? "checkmark" : "")
-                }
-
-                Button(action: { selectedTab = 3 }) {
-                    Label("Earnings", systemImage: selectedTab == 3 ? "checkmark" : "")
+                    Label("Earnings", systemImage: selectedTab == 2 ? "checkmark" : "")
                 }
             } label: {
                 HStack {
-                    Text(selectedTab == 0 ? "Overview" : selectedTab == 1 ? "Price Chart" : selectedTab == 2 ? "Revenue" : "Earnings")
+                    Text(selectedTab == 0 ? "Overview" : selectedTab == 1 ? "Revenue" : "Earnings")
                         .fontWeight(.semibold)
                     Image(systemName: "chevron.down")
                         .font(.caption)
@@ -1497,10 +1469,6 @@ struct StockDetailView: View {
                         .padding(.bottom, 40)
                     }
                 } else if selectedTab == 1 {
-                    // Price Chart
-                    PriceChartView(symbol: item.symbol, marketDataService: MarketDataService())
-                        .padding(.bottom, 40)
-                } else if selectedTab == 2 {
                     // Revenue
                     RevenueChartsView(symbol: item.symbol, apiService: apiService)
                         .padding(.bottom, 40)
@@ -1895,290 +1863,6 @@ struct FlowLayout: Layout {
     }
 }
 
-// MARK: - Stock Overview Tab (Legacy - to be removed)
-struct StockOverviewTab: View {
-    @Bindable var item: ResearchItem
-    @Binding var isUpdating: Bool
-    @Binding var editingNotes: Bool
-    @Binding var showingAddTag: Bool
-    @Binding var newTag: String
-    let apiService: StockAPIService
-    let onUpdatePrice: () -> Void
-    let onAddTag: () -> Void
-    let onRemoveTag: (String) -> Void
-
-    @State private var metrics: CompanyMetrics?
-    @State private var currentQuote: StockQuote?
-    @State private var isLoadingMetrics = false
-
-    var body: some View {
-        List {
-            Section("Overview") {
-                HStack {
-                    Text("Symbol")
-                    Spacer()
-                    Text(item.symbol.uppercased())
-                        .fontWeight(.semibold)
-                }
-                
-                HStack {
-                    Text("Company")
-                    Spacer()
-                    Text(item.name)
-                        .fontWeight(.semibold)
-                }
-                
-                HStack {
-                    Text("Current Price")
-                    Spacer()
-                    HStack(spacing: 8) {
-                        if isUpdating {
-                            ProgressView()
-                                .scaleEffect(0.8)
-                        }
-                        Text("$\(item.currentPrice, specifier: "%.2f")")
-                            .fontWeight(.semibold)
-                    }
-                }
-                
-                HStack {
-                    Text("Change")
-                    Spacer()
-                    HStack(spacing: 4) {
-                        Image(systemName: item.priceChangePercent >= 0 ? "arrow.up.right" : "arrow.down.right")
-                        Text("\(item.priceChangePercent >= 0 ? "+" : "")\(item.priceChangePercent, specifier: "%.2f")%")
-                    }
-                    .foregroundStyle(item.priceChangePercent >= 0 ? .green : .red)
-                    .fontWeight(.semibold)
-                }
-                
-                HStack {
-                    Text("Last Updated")
-                    Spacer()
-                    Text(item.lastUpdated, format: .relative(presentation: .named))
-                        .foregroundStyle(.secondary)
-                }
-            }
-            
-            Section("Research") {
-                HStack {
-                    Text("Rating")
-                    Spacer()
-                    HStack(spacing: 8) {
-                        ForEach(1...5, id: \.self) { star in
-                            Button(action: { item.rating = star }) {
-                                Image(systemName: star <= item.rating ? "star.fill" : "star")
-                                    .foregroundStyle(star <= item.rating ? .yellow : .gray)
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                }
-                
-                Toggle("Add to Watchlist", isOn: $item.isWatchlist)
-                
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Notes")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                    
-                    if editingNotes {
-                        TextEditor(text: $item.notes)
-                            .frame(minHeight: 100)
-                        Button("Done") {
-                            editingNotes = false
-                        }
-                    } else {
-                        if item.notes.isEmpty {
-                            Button("Add Notes") {
-                                editingNotes = true
-                            }
-                        } else {
-                            Text(item.notes)
-                                .font(.body)
-                            Button("Edit") {
-                                editingNotes = true
-                            }
-                        }
-                    }
-                }
-            }
-            
-            Section("Tags") {
-                if !item.tags.isEmpty {
-                    ForEach(item.tags, id: \.self) { tag in
-                        HStack {
-                            Text(tag)
-                            Spacer()
-                            Button(action: { onRemoveTag(tag) }) {
-                                Image(systemName: "minus.circle.fill")
-                                    .foregroundStyle(.red)
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                }
-
-                Button("Add Tag") {
-                    showingAddTag = true
-                }
-            }
-
-            // Metrics section
-            if let metrics = metrics, let quote = currentQuote {
-                if let high = metrics.week52High, let low = metrics.week52Low {
-                    Section("52-Week Range") {
-                        VStack(spacing: 12) {
-                            HStack {
-                                Text("Low")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                Spacer()
-                                Text("High")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-
-                            ZStack(alignment: .leading) {
-                                RoundedRectangle(cornerRadius: 4)
-                                    .fill(Color.gray.opacity(0.2))
-                                    .frame(height: 8)
-
-                                GeometryReader { geometry in
-                                    let range = high - low
-                                    let position = range > 0 ? (quote.currentPrice - low) / range : 0.5
-                                    let xPosition = geometry.size.width * position
-
-                                    Circle()
-                                        .fill(Color.blue)
-                                        .frame(width: 16, height: 16)
-                                        .offset(x: max(0, min(xPosition - 8, geometry.size.width - 16)))
-                                }
-                                .frame(height: 16)
-                            }
-
-                            HStack {
-                                Text("$\(low, specifier: "%.2f")")
-                                    .font(.caption)
-                                    .fontWeight(.semibold)
-                                Spacer()
-                                Text("$\(quote.currentPrice, specifier: "%.2f")")
-                                    .font(.caption)
-                                    .fontWeight(.semibold)
-                                    .foregroundStyle(.blue)
-                                Spacer()
-                                Text("$\(high, specifier: "%.2f")")
-                                    .font(.caption)
-                                    .fontWeight(.semibold)
-                            }
-                        }
-                        .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 12, trailing: 16))
-                    }
-                }
-
-                Section("Key Metrics") {
-                    if let marketCap = metrics.marketCap {
-                        HStack {
-                            Text("Market Cap")
-                            Spacer()
-                            Text(formatMarketCap(marketCap))
-                                .fontWeight(.semibold)
-                        }
-                    }
-
-                    if let pe = metrics.peRatio {
-                        HStack {
-                            Text("P/E Ratio")
-                            Spacer()
-                            Text(String(format: "%.2f", pe))
-                                .fontWeight(.semibold)
-                        }
-                    }
-
-                    if let beta = metrics.beta {
-                        HStack {
-                            Text("Beta")
-                            Spacer()
-                            Text(String(format: "%.2f", beta))
-                                .fontWeight(.semibold)
-                        }
-                    }
-
-                    if let dividend = metrics.dividendYield {
-                        HStack {
-                            Text("Div Yield")
-                            Spacer()
-                            Text(String(format: "%.2f%%", dividend))
-                                .fontWeight(.semibold)
-                        }
-                    }
-                }
-
-                Section("Today's Stats") {
-                    HStack {
-                        Text("Open")
-                        Spacer()
-                        Text(String(format: "$%.2f", quote.open))
-                            .fontWeight(.semibold)
-                    }
-
-                    HStack {
-                        Text("High")
-                        Spacer()
-                        Text(String(format: "$%.2f", quote.high))
-                            .fontWeight(.semibold)
-                    }
-
-                    HStack {
-                        Text("Low")
-                        Spacer()
-                        Text(String(format: "$%.2f", quote.low))
-                            .fontWeight(.semibold)
-                    }
-
-                    HStack {
-                        Text("Prev Close")
-                        Spacer()
-                        Text(String(format: "$%.2f", quote.previousClose))
-                            .fontWeight(.semibold)
-                    }
-                }
-            } else if isLoadingMetrics {
-                Section {
-                    HStack {
-                        Spacer()
-                        ProgressView()
-                        Spacer()
-                    }
-                }
-            }
-        }
-        .onAppear {
-            loadMetrics()
-        }
-    }
-
-    private func loadMetrics() {
-        isLoadingMetrics = true
-        // Note: Real-time quotes and company metrics require a data provider
-        // Finnhub has been removed as it's not legal for commercial use
-        // Consider alternative providers like Alpha Vantage, IEX Cloud, or Polygon.io
-        isLoadingMetrics = false
-    }
-
-    private func formatMarketCap(_ value: Double) -> String {
-        if value >= 1_000_000_000_000 {
-            return String(format: "$%.2fT", value / 1_000_000_000_000)
-        } else if value >= 1_000_000_000 {
-            return String(format: "$%.2fB", value / 1_000_000_000)
-        } else if value >= 1_000_000 {
-            return String(format: "$%.2fM", value / 1_000_000)
-        } else {
-            return String(format: "$%.2f", value)
-        }
-    }
-}
-
 // MARK: - Revenue Chart View
 struct RevenueChartView: View {
     let symbol: String
@@ -2397,15 +2081,14 @@ struct RevenueChartView: View {
     }
 }
 
-// MARK: - Metrics View
-struct MetricsView: View {
-    let symbol: String
-    let apiService: StockAPIService
-    
-    @State private var metrics: CompanyMetrics?
-    @State private var currentQuote: StockQuote?
-    @State private var isLoading = false
-    
+#Preview {
+    ContentView()
+        .modelContainer(for: ResearchItem.self, inMemory: true)
+}
+
+/*
+// MARK: - Unused Legacy Views (kept for reference during redesign)
+struct MetricsView_Legacy: View {
     var body: some View {
         ScrollView {
             if isLoading {
@@ -2595,9 +2278,4 @@ struct StatRow: View {
         .padding()
     }
 }
-
-#Preview {
-    ContentView()
-        .modelContainer(for: ResearchItem.self, inMemory: true)
-}
-
+*/

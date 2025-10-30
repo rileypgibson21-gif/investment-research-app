@@ -2,14 +2,14 @@ name = "stock-research-api"
 main = "src/index.js"
 compatibility_date = "2024-01-01"
 
-# KV namespace for caching
+# KV namespace for caching SEC data
 [[kv_namespaces]]
 binding = "CACHE"
 id = "5215ef430db54824a7da3369e5129399"
 preview_id = "11107235a816466c993f354b3bdc72a4"
 
-# Environment variables (set via wrangler secret put)
-# MARKETSTACK_API_KEY - set this using: wrangler secret put MARKETSTACK_API_KEY
+# No API keys needed - using free SEC EDGAR API
+# SEC requires User-Agent (configured in index.js)
 
 [env.production]
 workers_dev = false
@@ -17,4 +17,3 @@ route = "my-stock-api.stock-research-api.workers.dev/*"
 
 [env.development]
 vars = { ENVIRONMENT = "development" }
-
