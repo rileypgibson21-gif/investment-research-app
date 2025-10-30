@@ -1917,11 +1917,11 @@ struct RevenueChartView: View {
                             Text("Quarterly Revenue")
                                 .font(.headline)
                                 .frame(maxWidth: .infinity, alignment: .center)
-                            
+
                             GeometryReader { geometry in
-                                let availableWidth = geometry.size.width - ChartConstants.yAxisWidth - 32
+                                let availableWidth = geometry.size.width - ChartConstants.yAxisWidth - 16
                                 let barCount = CGFloat(displayData.count)
-                                let dynamicBarWidth = max((availableWidth - (barCount - 1) * ChartConstants.barSpacing) / barCount, 4)
+                                let dynamicBarWidth = max((availableWidth - (barCount - 1) * ChartConstants.barSpacing) / barCount, 3)
 
                                 HStack(alignment: .center, spacing: 8) {
                                     // Fixed Y-axis on the left
@@ -1987,7 +1987,7 @@ struct RevenueChartView: View {
 
                                                         Spacer(minLength: 0)
 
-                                                        RoundedRectangle(cornerRadius: 4)
+                                                        RoundedRectangle(cornerRadius: 2)
                                                             .fill(selectedBar == point.id ? Color.blue.opacity(0.8) : Color.blue)
                                                             .frame(width: dynamicBarWidth, height: barHeight(for: point.revenue, in: ChartConstants.barChartHeight))
                                                             .onTapGesture {
@@ -2004,22 +2004,22 @@ struct RevenueChartView: View {
                                                     .id(point.id)
                                                 }
                                             }
-                                            .padding(.horizontal, 8)
+                                            .padding(.horizontal, 4)
                                         }
 
-                                        // X-axis labels - show every 4th to avoid overlap
+                                        // X-axis labels - show every 5th quarter for 40 bars (shows ~8 labels)
                                         HStack(alignment: .top, spacing: ChartConstants.barSpacing) {
                                             ForEach(Array(displayData.enumerated()), id: \.element.id) { index, point in
-                                                let shouldShowLabel = index % 4 == 0 || index == displayData.count - 1
+                                                let shouldShowLabel = index % 5 == 0 || index == displayData.count - 1
 
                                                 Text(shouldShowLabel ? formatDate(point.period) : "")
-                                                    .font(.system(size: 9))
+                                                    .font(.system(size: 8))
                                                     .foregroundStyle(.secondary)
                                                     .frame(width: dynamicBarWidth)
                                             }
                                         }
                                         .padding(.top, 4)
-                                        .padding(.horizontal, 8)
+                                        .padding(.horizontal, 4)
                                     }
                                 }
                             }
@@ -2029,7 +2029,7 @@ struct RevenueChartView: View {
                         .background(Color(uiColor: .systemBackground))
                         .cornerRadius(12)
                         .padding()
-                        
+
                         // Remove individual data table from quarterly chart
                     }
                 }
