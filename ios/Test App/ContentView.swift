@@ -210,7 +210,7 @@ struct RevenueChartsView: View {
                                 Divider()
 
                                 // Quarter labels
-                                ForEach(0..<min(max(quarterlyData.count, ttmData.count), 12), id: \.self) { index in
+                                ForEach(0..<min(max(quarterlyData.count, ttmData.count), 40), id: \.self) { index in
                                     VStack(spacing: 0) {
                                         if index < quarterlyData.count {
                                             Text(formatDate(quarterlyData[index].period))
@@ -227,7 +227,7 @@ struct RevenueChartsView: View {
                                                 .padding(.vertical, 8)
                                         }
 
-                                        if index < min(max(quarterlyData.count, ttmData.count), 12) - 1 {
+                                        if index < min(max(quarterlyData.count, ttmData.count), 40) - 1 {
                                             Divider()
                                         }
                                     }
@@ -261,7 +261,7 @@ struct RevenueChartsView: View {
                                     Divider()
 
                                     // Data Rows
-                                    ForEach(0..<min(max(quarterlyData.count, ttmData.count), 12), id: \.self) { index in
+                                    ForEach(0..<min(max(quarterlyData.count, ttmData.count), 40), id: \.self) { index in
                                         VStack(spacing: 0) {
                                             HStack(spacing: 0) {
                                                 // Quarterly value
@@ -310,7 +310,7 @@ struct RevenueChartsView: View {
                                             .padding(.vertical, 8)
                                             .padding(.trailing, 16)
 
-                                            if index < min(max(quarterlyData.count, ttmData.count), 12) - 1 {
+                                            if index < min(max(quarterlyData.count, ttmData.count), 40) - 1 {
                                                 Divider()
                                             }
                                         }
@@ -623,7 +623,7 @@ struct EarningsChartsView: View {
                                 Divider()
 
                                 // Quarter labels
-                                ForEach(0..<min(max(quarterlyData.count, ttmData.count), 12), id: \.self) { index in
+                                ForEach(0..<min(max(quarterlyData.count, ttmData.count), 40), id: \.self) { index in
                                     VStack(spacing: 0) {
                                         if index < quarterlyData.count {
                                             Text(formatDate(quarterlyData[index].period))
@@ -640,7 +640,7 @@ struct EarningsChartsView: View {
                                                 .padding(.vertical, 8)
                                         }
 
-                                        if index < min(max(quarterlyData.count, ttmData.count), 12) - 1 {
+                                        if index < min(max(quarterlyData.count, ttmData.count), 40) - 1 {
                                             Divider()
                                         }
                                     }
@@ -674,7 +674,7 @@ struct EarningsChartsView: View {
                                     Divider()
 
                                     // Data Rows
-                                    ForEach(0..<min(max(quarterlyData.count, ttmData.count), 12), id: \.self) { index in
+                                    ForEach(0..<min(max(quarterlyData.count, ttmData.count), 40), id: \.self) { index in
                                         VStack(spacing: 0) {
                                             HStack(spacing: 0) {
                                                 // Quarterly value
@@ -723,7 +723,7 @@ struct EarningsChartsView: View {
                                             .padding(.vertical, 8)
                                             .padding(.trailing, 16)
 
-                                            if index < min(max(quarterlyData.count, ttmData.count), 12) - 1 {
+                                            if index < min(max(quarterlyData.count, ttmData.count), 40) - 1 {
                                                 Divider()
                                             }
                                         }

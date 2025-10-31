@@ -144,7 +144,7 @@ struct TTMEarningsChartView: View {
                                                             .padding(.vertical, 4)
                                                             .background(
                                                                 RoundedRectangle(cornerRadius: 6)
-                                                                    .fill(Color.purple)
+                                                                    .fill(Color.blue)
                                                             )
                                                             .fixedSize()
                                                             .offset(x: index < 3 ? 20 : (index >= displayData.count - 3 ? -20 : 0))
@@ -163,7 +163,7 @@ struct TTMEarningsChartView: View {
                                                                 .frame(height: ChartConstants.chartHeight)
 
                                                             RoundedRectangle(cornerRadius: 2)
-                                                                .fill(selectedBar == point.id ? Color.purple.opacity(0.8) : Color.purple)
+                                                                .fill(selectedBar == point.id ? Color.blue.opacity(0.8) : Color.blue)
                                                                 .frame(width: dynamicBarWidth, height: heightValue)
                                                                 .offset(y: -offsetValue)
                                                                 .onTapGesture {

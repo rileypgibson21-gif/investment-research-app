@@ -127,7 +127,7 @@ struct EarningsChartView: View {
                                                             .padding(.vertical, 4)
                                                             .background(
                                                                 RoundedRectangle(cornerRadius: 6)
-                                                                    .fill(Color.green)
+                                                                    .fill(Color.blue)
                                                             )
                                                             .fixedSize()
                                                             .offset(x: index < 3 ? 20 : (index >= displayData.count - 3 ? -20 : 0))
@@ -146,7 +146,7 @@ struct EarningsChartView: View {
                                                                 .frame(height: ChartConstants.chartHeight)
 
                                                             RoundedRectangle(cornerRadius: 2)
-                                                                .fill(selectedBar == point.id ? Color.green.opacity(0.8) : Color.green)
+                                                                .fill(selectedBar == point.id ? Color.blue.opacity(0.8) : Color.blue)
                                                                 .frame(width: dynamicBarWidth, height: heightValue)
                                                                 .offset(y: -offsetValue)
                                                                 .onTapGesture {
