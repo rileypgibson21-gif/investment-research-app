@@ -16,17 +16,30 @@ I'll create a git commit, tag it with a version number, and push to GitHub.
 ### v1.0.0 - Initial Working Version (2025-10-26)
 **✅ Saved to GitHub**
 
-First working version with:
-- ✅ Revenue charts showing 40 quarters (no scrolling)
-- ✅ TTM revenue charts showing 37 periods (no scrolling)
-- ✅ Skinnier bars with tighter spacing (3pt)
-- ✅ Dynamic bar width based on screen size
-- ✅ Quarterly and TTM earnings charts
-- ✅ YoY growth charts for revenue and earnings
+First working version with **100% free SEC-only data**:
+
+**Data Architecture:**
+- ✅ All data from SEC EDGAR API (no API keys, $0/month cost)
 - ✅ Cloudflare Worker backend deployed
-- ✅ Marketstack API integration
-- ✅ SEC API for company financials
-- ✅ All compiler errors fixed
+- ✅ Revenue data (quarterly and TTM) from SEC filings
+- ✅ Earnings data (quarterly and TTM) from SEC filings
+- ✅ Company ticker autocomplete from SEC ticker list
+- ✅ App Store compliant (no paid APIs, no terms violations)
+
+**Chart Features:**
+- ✅ Revenue charts (quarterly & TTM) with 40 quarters displayed
+- ✅ Earnings charts (quarterly & TTM) with dynamic Y-axis
+- ✅ YoY growth charts (revenue & earnings) with color coding (green/red)
+- ✅ Negative value support for earnings charts
+- ✅ All charts use consistent blue color scheme
+- ✅ Dynamic bar widths (no horizontal scrolling)
+- ✅ Data tables showing up to 10 years of history
+
+**Technical Details:**
+- ✅ Charts extracted to separate files for fast compilation
+- ✅ ChartUtilities shared formatting functions
+- ✅ Consistent chart styling across all views
+- ✅ All build errors resolved
 
 **GitHub:** [View on GitHub](https://github.com/rileypgibson21-gif/investment-research-app/releases/tag/v1.0.0)
 
