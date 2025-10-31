@@ -77,6 +77,24 @@ struct YoYEarningsGrowthChartView: View {
         return labels
     }
 
+    /// Calculate the Y position where zero line sits (as fraction of chart height from bottom)
+    private var zeroLinePosition: CGFloat {
+        let range = growthRange
+        let totalRange = range.max - range.min
+        guard totalRange > 0 else { return 0.5 }
+        // Zero position as fraction from bottom: -min / totalRange
+        return CGFloat(-range.min / totalRange)
+    }
+
+    /// Calculate Y offset for a label at given index to align with gridlines
+    private func yOffsetForLabel(at index: Int) -> CGFloat {
+        let labels = getYAxisLabels()
+        let labelCount = CGFloat(labels.count)
+        let step = ChartConstants.chartHeight / (labelCount - 1)
+        // Center at 0 (middle of chart), then offset based on index
+        return -ChartConstants.chartHeight / 2 + (step * CGFloat(index))
+    }
+
     var body: some View {
         ZStack {
             if isLoading {
@@ -107,42 +125,34 @@ struct YoYEarningsGrowthChartView: View {
                                 .font(.headline)
                                 .frame(maxWidth: .infinity, alignment: .center)
 
-                            HStack(alignment: .center, spacing: 8) {
-                                // Fixed Y-axis on the left
-                                VStack(alignment: .trailing, spacing: 0) {
-                                    ForEach(Array(getYAxisLabels().enumerated()), id: \.offset) { index, value in
-                                        Text(formatYAxisValue(value))
-                                            .font(.caption2)
-                                            .foregroundStyle(.secondary)
+                            GeometryReader { geometry in
+                                let availableWidth = geometry.size.width - ChartConstants.yAxisWidth - 16
+                                let barCount = CGFloat(displayData.count)
+                                let dynamicBarWidth = max((availableWidth - (barCount - 1) * ChartConstants.barSpacing) / barCount, 3)
 
-                                        if index < getYAxisLabels().count - 1 {
-                                            Spacer()
+                                HStack(alignment: .center, spacing: 8) {
+                                    // Fixed Y-axis on the left - labels aligned with gridlines
+                                    ZStack(alignment: .trailing) {
+                                        ForEach(Array(getYAxisLabels().enumerated()), id: \.offset) { index, value in
+                                            Text(formatYAxisValue(value))
+                                                .font(.caption2)
+                                                .foregroundStyle(.secondary)
+                                                .offset(y: yOffsetForLabel(at: index))
                                         }
                                     }
-                                }
-                                .frame(width: ChartConstants.yAxisWidth, height: ChartConstants.chartHeight)
+                                    .frame(width: ChartConstants.yAxisWidth, height: ChartConstants.chartHeight)
 
-                                // Scrollable chart area
-                                ScrollView(.horizontal, showsIndicators: false) {
-                                    ScrollViewReader { proxy in
+                                    // Chart area - no scrolling, all bars visible
                                         VStack(spacing: 0) {
                                             // Space for tooltips above the chart
                                             Spacer()
                                                 .frame(height: 60)
 
-                                            ZStack(alignment: .center) {
-                                                // Grid lines - center alignment for proper zero line
+                                            ZStack(alignment: .bottom) {
                                                 VStack(spacing: 0) {
                                                     ForEach(0..<5) { index in
-                                                        if index == 2 {
-                                                            // Prominent zero line at exact center
-                                                            Rectangle()
-                                                                .fill(Color.primary.opacity(0.8))
-                                                                .frame(height: 2)
-                                                        } else {
-                                                            Divider()
-                                                                .background(Color.gray.opacity(0.2))
-                                                        }
+                                                        Divider()
+                                                            .background(Color.gray.opacity(0.2))
                                                         if index < 4 {
                                                             Spacer()
                                                         }
@@ -150,37 +160,12 @@ struct YoYEarningsGrowthChartView: View {
                                                 }
                                                 .frame(height: ChartConstants.chartHeight)
 
-                                                HStack(alignment: .center, spacing: 8) {
+                                                HStack(alignment: .bottom, spacing: ChartConstants.barSpacing) {
                                                     ForEach(Array(displayData.enumerated()), id: \.element.id) { index, point in
-                                                        // Bar area - split into top/bottom for perfect zero alignment
-                                                        VStack(spacing: 0) {
-                                                            // Top half - for positive values (bars grow upward from zero)
-                                                            ZStack(alignment: .bottom) {
-                                                                Color.clear
-                                                                if point.growthPercent >= 0 {
-                                                                    let barHeightValue = barHeight(for: point.growthPercent, in: ChartConstants.chartHeight)
-                                                                    RoundedRectangle(cornerRadius: 4)
-                                                                        .fill(selectedBar == point.id ? Color.green.opacity(0.8) : Color.green)
-                                                                        .frame(width: 24, height: max(barHeightValue, 2))
-                                                                }
-                                                            }
-                                                            .frame(width: 40, height: ChartConstants.chartHeight * 0.5)
+                                                        let heightValue = barHeight(for: point.growthPercent, in: ChartConstants.chartHeight)
+                                                        let offsetValue = barOffset(for: point.growthPercent, barHeight: heightValue, in: ChartConstants.chartHeight)
 
-                                                            // Bottom half - for negative values (bars grow downward from zero)
-                                                            ZStack(alignment: .top) {
-                                                                Color.clear
-                                                                if point.growthPercent < 0 {
-                                                                    let barHeightValue = barHeight(for: point.growthPercent, in: ChartConstants.chartHeight)
-                                                                    RoundedRectangle(cornerRadius: 4)
-                                                                        .fill(selectedBar == point.id ? Color.red.opacity(0.8) : Color.red)
-                                                                        .frame(width: 24, height: max(barHeightValue, 2))
-                                                                }
-                                                            }
-                                                            .frame(width: 40, height: ChartConstants.chartHeight * 0.5)
-                                                        }
-                                                        .frame(width: 40, height: ChartConstants.chartHeight)
-                                                        .overlay(alignment: .top) {
-                                                            // Tooltip positioned above the bar area
+                                                        VStack(spacing: 4) {
                                                             if selectedBar == point.id {
                                                                 VStack(spacing: 2) {
                                                                     Text(formatDate(point.period))
@@ -203,50 +188,64 @@ struct YoYEarningsGrowthChartView: View {
                                                                         .fill(point.growthPercent >= 0 ? Color.green : Color.red)
                                                                 )
                                                                 .fixedSize()
-                                                                .offset(x: index == 0 ? 20 : (index == displayData.count - 1 ? -20 : 0), y: -55)
+                                                                .offset(x: index < 3 ? 20 : (index >= displayData.count - 3 ? -20 : 0))
                                                                 .transition(.opacity.combined(with: .scale))
+                                                            } else {
+                                                                // Empty spacer to maintain consistent height
+                                                                Color.clear
+                                                                    .frame(height: 50)
+                                                            }
+
+                                                            Spacer(minLength: 0)
+
+                                                            // Bar positioned at zero line
+                                                            ZStack(alignment: .bottom) {
+                                                                Color.clear
+                                                                    .frame(height: ChartConstants.chartHeight)
+
+                                                                RoundedRectangle(cornerRadius: 2)
+                                                                    .fill(point.growthPercent >= 0 ?
+                                                                          (selectedBar == point.id ? Color.green.opacity(0.8) : Color.green) :
+                                                                          (selectedBar == point.id ? Color.red.opacity(0.8) : Color.red))
+                                                                    .frame(width: dynamicBarWidth, height: heightValue)
+                                                                    .offset(y: -offsetValue)
+                                                                    .onTapGesture {
+                                                                        withAnimation(.easeInOut(duration: 0.2)) {
+                                                                            if selectedBar == point.id {
+                                                                                selectedBar = nil
+                                                                            } else {
+                                                                                selectedBar = point.id
+                                                                            }
+                                                                        }
+                                                                    }
                                                             }
                                                         }
-                                                        .contentShape(Rectangle())
-                                                        .onTapGesture {
-                                                            withAnimation(.easeInOut(duration: 0.2)) {
-                                                                if selectedBar == point.id {
-                                                                    selectedBar = nil
-                                                                } else {
-                                                                    selectedBar = point.id
-                                                                }
-                                                            }
-                                                        }
+                                                        .frame(width: dynamicBarWidth, height: 290, alignment: .bottom)
                                                         .id(point.id)
                                                     }
                                                 }
-                                                .padding(.horizontal, 40)
+                                                .padding(.horizontal, 4)
                                             }
 
-                                            // X-axis labels
-                                            HStack(alignment: .top, spacing: 8) {
-                                                ForEach(displayData) { point in
-                                                    Text(formatDate(point.period))
-                                                        .font(.caption2)
+                                            // X-axis labels - show every 9th period for 36 bars
+                                            HStack(alignment: .top, spacing: ChartConstants.barSpacing) {
+                                                ForEach(Array(displayData.enumerated()), id: \.element.id) { index, point in
+                                                    let shouldShowLabel = index % 9 == 0 || index == displayData.count - 1
+
+                                                    Text(shouldShowLabel ? formatYearLabel(point.period) : "")
+                                                        .font(.system(size: 9))
                                                         .foregroundStyle(.secondary)
-                                                        .frame(width: 40)
+                                                        .frame(width: dynamicBarWidth)
+                                                        .lineLimit(1)
+                                                        .minimumScaleFactor(0.5)
                                                 }
                                             }
                                             .padding(.top, 4)
-                                            .padding(.horizontal, 40)
+                                            .padding(.horizontal, 4)
                                         }
-                                        .onAppear {
-                                            // Scroll to the rightmost position (most recent quarter)
-                                            if let lastQuarter = displayData.last {
-                                                Task { @MainActor in
-                                                    try? await Task.sleep(nanoseconds: UInt64(ChartConstants.scrollDelay * 1_000_000_000))
-                                                    proxy.scrollTo(lastQuarter.id, anchor: .trailing)
-                                                }
-                                            }
-                                        }
-                                    }
                                 }
                             }
+                            .frame(height: 340)
                         }
                         .padding()
                         .background(Color(uiColor: .systemBackground))
@@ -284,19 +283,31 @@ struct YoYEarningsGrowthChartView: View {
         }
     }
 
-    private func barHeight(for value: Double, in totalHeight: CGFloat) -> CGFloat {
+    private func barHeight(for value: Double, in maxHeight: CGFloat) -> CGFloat {
         let range = growthRange
-        guard range.max > 0 else { return 4 }
+        let totalRange = range.max - range.min
+        guard totalRange > 0 else { return 4 }
 
-        // Since zero is at 50% of the chart, bars grow from the middle
-        // Calculate as proportion of the max value, using half the chart height
-        let normalized = abs(value) / range.max
-        return (totalHeight * 0.5) * normalized
+        // Normalize value to 0-1 range based on total chart range
+        let normalized = abs(value) / totalRange
+        return max(maxHeight * normalized, 2) // Minimum 2px for visibility
     }
 
-    private func zeroPosition() -> CGFloat {
-        // Since growthRange is always symmetric (-X to +X), zero is always at 50%
-        return 0.5
+    /// Calculate the offset from bottom for a bar value
+    private func barOffset(for value: Double, barHeight: CGFloat, in chartHeight: CGFloat) -> CGFloat {
+        let zeroY = chartHeight * zeroLinePosition
+
+        if value >= 0 {
+            // Positive values: bar sits on zero line, grows upward
+            return zeroY
+        } else {
+            // Negative values: bar grows downward from zero line
+            return zeroY - barHeight
+        }
+    }
+
+    private func formatYearLabel(_ dateString: String) -> String {
+        ChartUtilities.formatYearOnly(dateString)
     }
 
     private func formatDate(_ dateString: String) -> String {
