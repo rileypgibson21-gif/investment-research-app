@@ -41,6 +41,8 @@ export default {
         return await handleTTMEarnings(request, env, url);
       } else if (url.pathname.startsWith('/api/earnings/')) {
         return await handleEarnings(request, env, url);
+      } else if (url.pathname === '/api/tickers') {
+        return await handleTickers(request, env);
       } else if (url.pathname === '/api/health') {
         return jsonResponse({
           status: 'healthy',
@@ -131,6 +133,50 @@ async function handleTTMEarnings(request, env, url) {
     return jsonResponse(earnings);
   } catch (error) {
     return jsonResponse({ error: error.message }, 404);
+  }
+}
+
+/**
+ * Handle ticker list request
+ * GET /api/tickers
+ * Returns all available tickers with company names for autocomplete
+ */
+async function handleTickers(request, env) {
+  try {
+    // Check cache first
+    const cacheKey = 'all_tickers';
+    const cached = await getCache(env, cacheKey);
+
+    if (cached) {
+      return jsonResponse(cached);
+    }
+
+    // Fetch from SEC
+    const response = await fetch('https://www.sec.gov/files/company_tickers.json', {
+      headers: {
+        'User-Agent': USER_AGENT
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch company tickers from SEC');
+    }
+
+    const tickers = await response.json();
+
+    // Transform to array format: [{ ticker, name, cik }, ...]
+    const tickerArray = Object.values(tickers).map(t => ({
+      ticker: t.ticker,
+      name: t.title,
+      cik: String(t.cik_str).padStart(10, '0')
+    }));
+
+    // Cache for 7 days
+    await setCache(env, cacheKey, tickerArray, CACHE_TTL.CIK_LOOKUP);
+
+    return jsonResponse(tickerArray);
+  } catch (error) {
+    return jsonResponse({ error: error.message }, 500);
   }
 }
 

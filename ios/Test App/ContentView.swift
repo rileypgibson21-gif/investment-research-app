@@ -17,7 +17,18 @@ class StockAPIService {
         let _ = try await fetchRevenue(symbol: symbol)
         return symbol.uppercased()
     }
-    
+
+    // MARK: - Ticker Suggestions (For autocomplete)
+    func fetchAllTickers() async throws -> [TickerSuggestion] {
+        let urlString = "\(apiBaseURL)/api/tickers"
+        guard let url = URL(string: urlString) else {
+            throw APIError.invalidURL
+        }
+
+        let (data, _) = try await URLSession.shared.data(from: url)
+        return try JSONDecoder().decode([TickerSuggestion].self, from: data)
+    }
+
     // MARK: - Revenue Data (From Your API)
     func fetchRevenue(symbol: String, freq: String = "quarterly") async throws -> [RevenueDataPoint] {
         let urlString = "\(apiBaseURL)/api/revenue/\(symbol.uppercased())"
@@ -779,6 +790,17 @@ struct EarningsDataPoint: Identifiable {
     let earnings: Double
 }
 
+struct TickerSuggestion: Identifiable, Codable {
+    let id = UUID()
+    let ticker: String
+    let name: String
+    let cik: String
+
+    enum CodingKeys: String, CodingKey {
+        case ticker, name, cik
+    }
+}
+
 struct CompanyMetrics {
     var week52High: Double?
     var week52Low: Double?
@@ -1296,27 +1318,66 @@ struct AddStockView: View {
     @State private var name = ""
     @State private var isSearching = false
     @State private var searchError: String?
+    @State private var allTickers: [TickerSuggestion] = []
+    @State private var filteredSuggestions: [TickerSuggestion] = []
+    @State private var showSuggestions = false
+    @State private var isLoadingTickers = false
 
     private let apiService = StockAPIService()
 
     var body: some View {
         NavigationStack {
             Form {
-                Section("Stock Symbol") {
-                    HStack {
-                        TextField("Symbol (e.g., AAPL)", text: $symbol)
-                            .textInputAutocapitalization(.characters)
-                            .onChange(of: symbol) { _, _ in
-                                searchError = nil
-                            }
+                Section("Stock Symbol or Company Name") {
+                    VStack(alignment: .leading, spacing: 0) {
+                        HStack {
+                            TextField("Symbol or company name (e.g., AAPL or Apple)", text: $symbol)
+                                .textInputAutocapitalization(.characters)
+                                .autocorrectionDisabled()
+                                .onChange(of: symbol) { _, newValue in
+                                    searchError = nil
+                                    filterSuggestions(query: newValue)
+                                }
 
-                        if isSearching {
-                            ProgressView()
-                        } else {
-                            Button("Search") {
-                                searchStock()
+                            if isSearching {
+                                ProgressView()
                             }
-                            .disabled(symbol.isEmpty)
+                        }
+
+                        // Autocomplete dropdown
+                        if showSuggestions && !filteredSuggestions.isEmpty {
+                            VStack(spacing: 0) {
+                                ForEach(filteredSuggestions.prefix(10)) { suggestion in
+                                    Button(action: {
+                                        selectSuggestion(suggestion)
+                                    }) {
+                                        HStack(alignment: .center, spacing: 8) {
+                                            Text(suggestion.ticker)
+                                                .font(.body)
+                                                .fontWeight(.bold)
+                                                .foregroundStyle(.primary)
+
+                                            Text(suggestion.name)
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                                .lineLimit(1)
+
+                                            Spacer()
+                                        }
+                                        .padding(.vertical, 8)
+                                        .padding(.horizontal, 12)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                    }
+                                    .buttonStyle(.plain)
+
+                                    if suggestion.id != filteredSuggestions.prefix(10).last?.id {
+                                        Divider()
+                                    }
+                                }
+                            }
+                            .background(Color(uiColor: .secondarySystemBackground))
+                            .cornerRadius(8)
+                            .padding(.top, 8)
                         }
                     }
 
@@ -1324,6 +1385,15 @@ struct AddStockView: View {
                         Text(error)
                             .font(.caption)
                             .foregroundStyle(.red)
+                    }
+
+                    if isLoadingTickers {
+                        HStack {
+                            ProgressView()
+                            Text("Loading tickers...")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
 
@@ -1370,6 +1440,52 @@ struct AddStockView: View {
                 }
             }
         }
+        .onAppear {
+            loadTickers()
+        }
+    }
+
+    private func loadTickers() {
+        isLoadingTickers = true
+
+        Task {
+            do {
+                let tickers = try await apiService.fetchAllTickers()
+                await MainActor.run {
+                    allTickers = tickers
+                    isLoadingTickers = false
+                }
+            } catch {
+                await MainActor.run {
+                    // Silent fail - autocomplete won't work but manual search still will
+                    isLoadingTickers = false
+                }
+            }
+        }
+    }
+
+    private func filterSuggestions(query: String) {
+        guard !query.isEmpty, !allTickers.isEmpty else {
+            filteredSuggestions = []
+            showSuggestions = false
+            return
+        }
+
+        let lowercased = query.lowercased()
+        filteredSuggestions = allTickers.filter {
+            $0.ticker.lowercased().contains(lowercased) ||
+            $0.name.lowercased().contains(lowercased)
+        }
+
+        showSuggestions = !filteredSuggestions.isEmpty
+    }
+
+    private func selectSuggestion(_ suggestion: TickerSuggestion) {
+        symbol = suggestion.ticker
+        name = suggestion.name
+        showSuggestions = false
+        // Auto-validate the selected ticker
+        searchStock()
     }
 
     private func searchStock() {
@@ -1382,7 +1498,14 @@ struct AddStockView: View {
 
                 await MainActor.run {
                     symbol = validatedSymbol
-                    name = validatedSymbol // Use symbol as name (SEC data doesn't provide company name easily)
+
+                    // Fetch company name from tickers list if available
+                    if let ticker = allTickers.first(where: { $0.ticker.uppercased() == validatedSymbol.uppercased() }) {
+                        name = ticker.name
+                    } else {
+                        name = validatedSymbol  // Fallback to symbol if name not found
+                    }
+
                     isSearching = false
                 }
             } catch {
