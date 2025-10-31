@@ -94,16 +94,13 @@ struct TTMEarningsChartView: View {
                                 let dynamicBarWidth = max((availableWidth - (barCount - 1) * ChartConstants.barSpacing) / barCount, 3)
 
                                 HStack(alignment: .center, spacing: 8) {
-                                    // Fixed Y-axis on the left
-                                    VStack(alignment: .trailing, spacing: 0) {
+                                    // Fixed Y-axis on the left - labels aligned with gridlines
+                                    ZStack(alignment: .trailing) {
                                         ForEach(Array(getYAxisLabels().enumerated()), id: \.offset) { index, value in
                                             Text(formatYAxisValue(value))
                                                 .font(.caption2)
                                                 .foregroundStyle(.secondary)
-
-                                            if index < getYAxisLabels().count - 1 {
-                                                Spacer()
-                                            }
+                                                .offset(y: yOffsetForLabel(at: index))
                                         }
                                     }
                                     .frame(width: ChartConstants.yAxisWidth, height: ChartConstants.chartHeight)
@@ -282,5 +279,14 @@ struct TTMEarningsChartView: View {
 
     private func formatYAxisValue(_ value: Double) -> String {
         ChartUtilities.formatYAxisValue(value)
+    }
+
+    /// Calculate Y offset for a label at given index to align with gridlines
+    private func yOffsetForLabel(at index: Int) -> CGFloat {
+        let labels = getYAxisLabels()
+        let labelCount = CGFloat(labels.count)
+        let step = ChartConstants.chartHeight / (labelCount - 1)
+        // Center at 0 (middle of chart), then offset based on index
+        return -ChartConstants.chartHeight / 2 + (step * CGFloat(index))
     }
 }

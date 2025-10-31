@@ -182,15 +182,41 @@ enum ChartUtilities {
     }
 
     /// Generates Y-axis labels for a range (supports negative values)
+    /// Ensures 0 is always included as a label when range spans zero
     static func generateYAxisLabels(minValue: Double, maxValue: Double, divisions: Int = 4) -> [Double] {
-        let interval = (maxValue - minValue) / Double(divisions)
-        var labels: [Double] = []
+        // If range includes zero, ensure it's one of the labels
+        if minValue < 0 && maxValue > 0 {
+            // Calculate how many divisions should be above/below zero
+            let totalRange = maxValue - minValue
+            let positiveRatio = maxValue / totalRange
+            let divisionsAboveZero = max(1, Int(round(Double(divisions) * positiveRatio)))
+            let divisionsBelowZero = divisions - divisionsAboveZero
 
-        for i in 0...divisions {
-            labels.append(maxValue - (interval * Double(i)))
+            // Calculate intervals from zero
+            let positiveInterval = maxValue / Double(divisionsAboveZero)
+            let negativeInterval = -minValue / Double(divisionsBelowZero)
+
+            // Generate labels with zero guaranteed
+            var labels: [Double] = []
+            for i in 0...divisionsAboveZero {
+                labels.append(maxValue - (positiveInterval * Double(i)))
+            }
+            for i in 1...divisionsBelowZero {
+                labels.append(-(negativeInterval * Double(i)))
+            }
+
+            return labels.sorted(by: >)  // Sort descending
+        } else {
+            // All positive or all negative - use equal intervals
+            let interval = (maxValue - minValue) / Double(divisions)
+            var labels: [Double] = []
+
+            for i in 0...divisions {
+                labels.append(maxValue - (interval * Double(i)))
+            }
+
+            return labels
         }
-
-        return labels
     }
 
     /// Generates Y-axis labels centered around zero (for positive/negative charts)
