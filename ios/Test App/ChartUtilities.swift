@@ -123,6 +123,81 @@ enum ChartUtilities {
         return String(format: "%.0f", value)
     }
 
+    // MARK: - Financial Y-Axis Formatting
+
+    /// Value scale for Y-axis labels
+    enum ValueScale {
+        case billions
+        case millions
+        case thousands
+        case ones
+
+        var divisor: Double {
+            switch self {
+            case .billions: return 1_000_000_000
+            case .millions: return 1_000_000
+            case .thousands: return 1_000
+            case .ones: return 1
+            }
+        }
+
+        var suffix: String {
+            switch self {
+            case .billions: return "b"
+            case .millions: return "m"
+            case .thousands: return "k"
+            case .ones: return ""
+            }
+        }
+    }
+
+    /// Detect appropriate scale for financial values
+    static func detectValueScale(values: [Double]) -> ValueScale {
+        let maxAbs = values.map { abs($0) }.max() ?? 0
+
+        if maxAbs >= 1_000_000_000 {
+            return .billions
+        } else if maxAbs >= 1_000_000 {
+            return .millions
+        } else if maxAbs >= 1_000 {
+            return .thousands
+        } else {
+            return .ones
+        }
+    }
+
+    /// Format Y-axis label with financial notation ($10b, -$250m, $0)
+    static func formatFinancialYAxisLabel(_ value: Double, scale: ValueScale) -> String {
+        if value == 0 {
+            return "$0"
+        }
+
+        let scaledValue = value / scale.divisor
+        let isNegative = value < 0
+        let absScaledValue = abs(scaledValue)
+
+        // Format with appropriate precision
+        let formattedNumber: String
+        if absScaledValue >= 100 {
+            formattedNumber = String(format: "%.0f", absScaledValue)
+        } else if absScaledValue >= 10 {
+            formattedNumber = String(format: "%.1f", absScaledValue)
+        } else {
+            formattedNumber = String(format: "%.1f", absScaledValue)
+        }
+
+        let prefix = isNegative ? "-$" : "$"
+        return "\(prefix)\(formattedNumber)\(scale.suffix)"
+    }
+
+    /// Format Y-axis percentage label (+25%, -10%, 0%)
+    static func formatPercentageYAxisLabel(_ value: Double) -> String {
+        if value == 0 {
+            return "0%"
+        }
+        return String(format: "%+.0f%%", value)
+    }
+
     // MARK: - Chart Calculations
 
     /// Rounds a value to a nice number for chart scaling
@@ -169,54 +244,77 @@ enum ChartUtilities {
         }
     }
 
-    /// Generates Y-axis labels with equal intervals
-    static func generateYAxisLabels(maxValue: Double, divisions: Int = 4) -> [Double] {
-        let interval = maxValue / Double(divisions)
-        var labels: [Double] = []
+    // MARK: - Nice Tick Generation
 
-        for i in 0...divisions {
-            labels.append(maxValue - (interval * Double(i)))
+    /// Calculate a nice interval for axis ticks (1, 2, 2.5, 5, 10, 20, 25, 50, etc.)
+    private static func calculateNiceInterval(_ roughInterval: Double) -> Double {
+        guard roughInterval > 0 else { return 1 }
+
+        let magnitude = pow(10, floor(log10(roughInterval)))
+        let normalized = roughInterval / magnitude
+
+        let niceNormalized: Double
+        if normalized <= 1 { niceNormalized = 1 }
+        else if normalized <= 2 { niceNormalized = 2 }
+        else if normalized <= 2.5 { niceNormalized = 2.5 }
+        else if normalized <= 5 { niceNormalized = 5 }
+        else { niceNormalized = 10 }
+
+        return niceNormalized * magnitude
+    }
+
+    /// Generate nice tick values spanning min to max
+    private static func generateNiceTickValues(min: Double, max: Double, targetCount: Int) -> [Double] {
+        let range = max - min
+        guard range > 0 else { return [0] }
+
+        // Calculate rough tick interval
+        let roughInterval = range / Double(targetCount - 1)
+
+        // Round to nice number (1, 2, 5, 10, 20, 25, 50, 100, etc.)
+        let niceInterval = calculateNiceInterval(roughInterval)
+
+        // Generate ticks
+        var ticks: [Double] = []
+
+        // Start at nice number at or below min
+        let startTick = floor(min / niceInterval) * niceInterval
+
+        var currentTick = startTick
+        while currentTick <= max + (niceInterval * 0.01) { // Small epsilon for floating point
+            if currentTick >= min - (niceInterval * 0.01) {
+                ticks.append(currentTick)
+            }
+            currentTick += niceInterval
         }
 
-        return labels
+        // Ensure we have 0 if range spans it and it's not already included
+        if min < 0 && max > 0 {
+            let hasZero = ticks.contains(where: { abs($0) < niceInterval * 0.01 })
+            if !hasZero {
+                ticks.append(0)
+                ticks.sort(by: >)
+            }
+        }
+
+        return ticks.sorted(by: >)
+    }
+
+    /// Generates Y-axis labels with nice, round numbers
+    static func generateYAxisLabels(maxValue: Double, targetCount: Int = 5) -> [Double] {
+        guard maxValue > 0 else { return [0] }
+
+        // Find nice numbers that span 0 to maxValue
+        return generateNiceTickValues(min: 0, max: maxValue, targetCount: targetCount)
     }
 
     /// Generates Y-axis labels for a range (supports negative values)
     /// Ensures 0 is always included as a label when range spans zero
-    static func generateYAxisLabels(minValue: Double, maxValue: Double, divisions: Int = 4) -> [Double] {
-        // If range includes zero, ensure it's one of the labels
-        if minValue < 0 && maxValue > 0 {
-            // Calculate how many divisions should be above/below zero
-            let totalRange = maxValue - minValue
-            let positiveRatio = maxValue / totalRange
-            let divisionsAboveZero = max(1, Int(round(Double(divisions) * positiveRatio)))
-            let divisionsBelowZero = divisions - divisionsAboveZero
+    static func generateYAxisLabels(minValue: Double, maxValue: Double, targetCount: Int = 5) -> [Double] {
+        guard maxValue > minValue else { return [0] }
 
-            // Calculate intervals from zero
-            let positiveInterval = maxValue / Double(divisionsAboveZero)
-            let negativeInterval = -minValue / Double(divisionsBelowZero)
-
-            // Generate labels with zero guaranteed
-            var labels: [Double] = []
-            for i in 0...divisionsAboveZero {
-                labels.append(maxValue - (positiveInterval * Double(i)))
-            }
-            for i in 1...divisionsBelowZero {
-                labels.append(-(negativeInterval * Double(i)))
-            }
-
-            return labels.sorted(by: >)  // Sort descending
-        } else {
-            // All positive or all negative - use equal intervals
-            let interval = (maxValue - minValue) / Double(divisions)
-            var labels: [Double] = []
-
-            for i in 0...divisions {
-                labels.append(maxValue - (interval * Double(i)))
-            }
-
-            return labels
-        }
+        // Find nice numbers that span the range, ensuring 0 is included if range spans it
+        return generateNiceTickValues(min: minValue, max: maxValue, targetCount: targetCount)
     }
 
     /// Generates Y-axis labels centered around zero (for positive/negative charts)

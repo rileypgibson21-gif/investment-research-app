@@ -21,6 +21,7 @@ struct YoYGrowthChartView: View {
         let growthPercent: Double
         let currentRevenue: Double
         let priorRevenue: Double
+        let shouldRender: Bool
         var id: String { period }  // Use period string as stable id
     }
 
@@ -35,13 +36,15 @@ struct YoYGrowthChartView: View {
             let current = sortedData[i]
             let prior = sortedData[i - 4]
 
-            let growthPercent = ((current.revenue - prior.revenue) / prior.revenue) * 100
+            let shouldRender = prior.revenue > 0
+            let growthPercent = shouldRender ? ((current.revenue - prior.revenue) / prior.revenue) * 100 : 0
 
             growth.append(GrowthDataPoint(
                 period: current.period,
                 growthPercent: growthPercent,
                 currentRevenue: current.revenue,
-                priorRevenue: prior.revenue
+                priorRevenue: prior.revenue,
+                shouldRender: shouldRender
             ))
         }
 
@@ -54,25 +57,13 @@ struct YoYGrowthChartView: View {
     }
 
     var growthRange: (min: Double, max: Double) {
-        let allGrowth = displayData.map { $0.growthPercent }
-        let minGrowth = allGrowth.min() ?? 0
-        let maxGrowth = allGrowth.max() ?? 10
-
-        // Always show symmetric range centered at 0
-        let maxAbs = max(abs(minGrowth), abs(maxGrowth))
-        let range = max(ChartUtilities.roundToNiceNumber(maxAbs * 1.05), 10.0)
-        return (-range, range)
+        let values = displayData.map { $0.growthPercent }
+        return ChartUtilities.calculateAdaptiveRange(values: values)
     }
 
     private func getYAxisLabels() -> [Double] {
         let range = growthRange
-        let interval = (range.max - range.min) / 4
-        guard interval > 0 else { return [10, 5, 0, -5, -10] } // Default labels if no valid range
-        var labels: [Double] = []
-        for i in 0...4 {
-            labels.append(range.max - (interval * Double(i)))
-        }
-        return labels
+        return ChartUtilities.generateYAxisLabels(minValue: range.min, maxValue: range.max)
     }
 
     /// Calculate the Y position where zero line sits (as fraction of chart height from bottom)
@@ -127,16 +118,23 @@ struct YoYGrowthChartView: View {
                                                 .frame(height: 60)
 
                                             ZStack(alignment: .bottom) {
+                                                // Background gridlines
                                                 VStack(spacing: 0) {
-                                                    ForEach(0..<5) { index in
+                                                    ForEach(Array(getYAxisLabels().enumerated()), id: \.offset) { index, _ in
                                                         Divider()
                                                             .background(Color.gray.opacity(0.2))
-                                                        if index < 4 {
+                                                        if index < getYAxisLabels().count - 1 {
                                                             Spacer()
                                                         }
                                                     }
                                                 }
                                                 .frame(height: ChartConstants.chartHeight)
+
+                                                // Highlighted zero line (always visible for growth charts)
+                                                Rectangle()
+                                                    .fill(Color.gray.opacity(0.5))
+                                                    .frame(height: 1)
+                                                    .offset(y: -(ChartConstants.chartHeight * zeroLinePosition))
 
                                                 HStack(alignment: .bottom, spacing: ChartConstants.barSpacing) {
                                                     ForEach(Array(displayData.enumerated()), id: \.element.id) { index, point in
@@ -181,21 +179,23 @@ struct YoYGrowthChartView: View {
                                                                 Color.clear
                                                                     .frame(height: ChartConstants.chartHeight)
 
-                                                                RoundedRectangle(cornerRadius: 2)
-                                                                    .fill(point.growthPercent >= 0 ?
-                                                                          (selectedBar == point.id ? Color.green.opacity(0.8) : Color.green) :
-                                                                          (selectedBar == point.id ? Color.red.opacity(0.8) : Color.red))
-                                                                    .frame(width: dynamicBarWidth, height: heightValue)
-                                                                    .offset(y: -offsetValue)
-                                                                    .onTapGesture {
-                                                                        withAnimation(.easeInOut(duration: 0.2)) {
-                                                                            if selectedBar == point.id {
-                                                                                selectedBar = nil
-                                                                            } else {
-                                                                                selectedBar = point.id
+                                                                if point.shouldRender {
+                                                                    RoundedRectangle(cornerRadius: 2)
+                                                                        .fill(point.growthPercent >= 0 ?
+                                                                              (selectedBar == point.id ? Color.green.opacity(0.8) : Color.green) :
+                                                                              (selectedBar == point.id ? Color.red.opacity(0.8) : Color.red))
+                                                                        .frame(width: dynamicBarWidth, height: heightValue)
+                                                                        .offset(y: -offsetValue)
+                                                                        .onTapGesture {
+                                                                            withAnimation(.easeInOut(duration: 0.2)) {
+                                                                                if selectedBar == point.id {
+                                                                                    selectedBar = nil
+                                                                                } else {
+                                                                                    selectedBar = point.id
+                                                                                }
                                                                             }
                                                                         }
-                                                                    }
+                                                                }
                                                             }
                                                         }
                                                         .frame(width: dynamicBarWidth, height: 290, alignment: .bottom)
@@ -288,11 +288,11 @@ struct YoYGrowthChartView: View {
     private func barHeight(for value: Double, in maxHeight: CGFloat) -> CGFloat {
         let range = growthRange
         let totalRange = range.max - range.min
-        guard totalRange > 0 else { return 4 }
+        guard totalRange > 0 else { return 0 }
 
-        // Normalize value to 0-1 range based on total chart range
+        // Distance from zero to value
         let normalized = abs(value) / totalRange
-        return max(maxHeight * normalized, 2) // Minimum 2px for visibility
+        return maxHeight * normalized
     }
 
     /// Calculate the offset from bottom for a bar value
@@ -325,6 +325,6 @@ struct YoYGrowthChartView: View {
     }
 
     private func formatYAxisValue(_ value: Double) -> String {
-        ChartUtilities.formatYAxisPercentage(value)
+        ChartUtilities.formatPercentageYAxisLabel(value)
     }
 }

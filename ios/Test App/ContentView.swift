@@ -354,15 +354,30 @@ struct TTMRevenueChartView: View {
         return Array(sorted.suffix(ChartConstants.ttmDataLimit))
     }
 
-    var maxRevenue: Double {
-        let actualMax = displayData.map { $0.revenue }.max() ?? 0
-        return ChartUtilities.roundToNiceNumber(actualMax * 1.05)
+    var revenueRange: (min: Double, max: Double) {
+        let values = displayData.map { $0.revenue }
+        return ChartUtilities.calculateAdaptiveRange(values: values)
+    }
+
+    private var valueScale: ChartUtilities.ValueScale {
+        let values = displayData.map { $0.revenue }
+        return ChartUtilities.detectValueScale(values: values)
     }
 
     private func getYAxisLabels() -> [Double] {
-        ChartUtilities.generateYAxisLabels(maxValue: maxRevenue)
+        let range = revenueRange
+        return ChartUtilities.generateYAxisLabels(minValue: range.min, maxValue: range.max)
     }
-    
+
+    /// Calculate the Y position where zero line sits (as fraction of chart height from bottom)
+    private var zeroLinePosition: CGFloat {
+        let range = revenueRange
+        let totalRange = range.max - range.min
+        guard totalRange > 0 else { return 0 }
+        // Zero position as fraction from bottom: -min / totalRange
+        return CGFloat(-range.min / totalRange)
+    }
+
     var body: some View {
         ZStack {
             if isLoading {
@@ -399,23 +414,20 @@ struct TTMRevenueChartView: View {
                             Text("Trailing Twelve Months Revenue")
                                 .font(.headline)
                                 .frame(maxWidth: .infinity, alignment: .center)
-                            
+
                             GeometryReader { geometry in
                                 let availableWidth = geometry.size.width - ChartConstants.yAxisWidth - 32
                                 let barCount = CGFloat(displayData.count)
                                 let dynamicBarWidth = max((availableWidth - (barCount - 1) * ChartConstants.barSpacing) / barCount, 4)
 
                                 HStack(alignment: .center, spacing: 8) {
-                                    // Fixed Y-axis on the left
-                                    VStack(alignment: .trailing, spacing: 0) {
+                                    // Fixed Y-axis on the left - labels aligned with gridlines
+                                    ZStack(alignment: .trailing) {
                                         ForEach(Array(getYAxisLabels().enumerated()), id: \.offset) { index, value in
                                             Text(formatYAxisValue(value))
                                                 .font(.caption2)
                                                 .foregroundStyle(.secondary)
-
-                                            if index < getYAxisLabels().count - 1 {
-                                                Spacer()
-                                            }
+                                                .offset(y: yOffsetForLabel(at: index))
                                         }
                                     }
                                     .frame(width: ChartConstants.yAxisWidth, height: ChartConstants.chartHeight)
@@ -423,19 +435,31 @@ struct TTMRevenueChartView: View {
                                     // Chart area - no scrolling, all bars visible
                                     VStack(spacing: 0) {
                                         ZStack(alignment: .bottom) {
+                                            // Background gridlines
                                             VStack(spacing: 0) {
-                                                ForEach(0..<5) { index in
+                                                ForEach(Array(getYAxisLabels().enumerated()), id: \.offset) { index, _ in
                                                     Divider()
                                                         .background(Color.gray.opacity(0.2))
-                                                    if index < 4 {
+                                                    if index < getYAxisLabels().count - 1 {
                                                         Spacer()
                                                     }
                                                 }
                                             }
                                             .frame(height: ChartConstants.chartHeight)
 
+                                            // Highlighted zero line (only if range spans negative/positive)
+                                            if revenueRange.min < 0 && revenueRange.max > 0 {
+                                                Rectangle()
+                                                    .fill(Color.gray.opacity(0.5))
+                                                    .frame(height: 1)
+                                                    .offset(y: -(ChartConstants.chartHeight * zeroLinePosition))
+                                            }
+
                                             HStack(alignment: .bottom, spacing: ChartConstants.barSpacing) {
                                                 ForEach(Array(displayData.enumerated()), id: \.element.id) { index, point in
+                                                    let heightValue = barHeight(for: point.revenue, in: ChartConstants.chartHeight)
+                                                    let offsetValue = barOffset(for: point.revenue, barHeight: heightValue, in: ChartConstants.chartHeight)
+
                                                     VStack(spacing: 4) {
                                                         if selectedBar == point.id {
                                                             VStack(spacing: 2) {
@@ -469,18 +493,25 @@ struct TTMRevenueChartView: View {
 
                                                         Spacer(minLength: 0)
 
-                                                        RoundedRectangle(cornerRadius: 4)
-                                                            .fill(selectedBar == point.id ? Color(red: 1.0, green: 0.0, blue: 1.0).opacity(0.8) : Color(red: 1.0, green: 0.0, blue: 1.0))
-                                                            .frame(width: dynamicBarWidth, height: barHeight(for: point.revenue, in: ChartConstants.barChartHeight))
-                                                            .onTapGesture {
-                                                                withAnimation(.easeInOut(duration: 0.2)) {
-                                                                    if selectedBar == point.id {
-                                                                        selectedBar = nil
-                                                                    } else {
-                                                                        selectedBar = point.id
+                                                        // Bar positioned at zero line
+                                                        ZStack(alignment: .bottom) {
+                                                            Color.clear
+                                                                .frame(height: ChartConstants.chartHeight)
+
+                                                            RoundedRectangle(cornerRadius: 4)
+                                                                .fill(selectedBar == point.id ? Color(red: 1.0, green: 0.0, blue: 1.0).opacity(0.8) : Color(red: 1.0, green: 0.0, blue: 1.0))
+                                                                .frame(width: dynamicBarWidth, height: heightValue)
+                                                                .offset(y: -offsetValue)
+                                                                .onTapGesture {
+                                                                    withAnimation(.easeInOut(duration: 0.2)) {
+                                                                        if selectedBar == point.id {
+                                                                            selectedBar = nil
+                                                                        } else {
+                                                                            selectedBar = point.id
+                                                                        }
                                                                     }
                                                                 }
-                                                            }
+                                                        }
                                                     }
                                                     .frame(width: dynamicBarWidth, height: 290, alignment: .bottom)
                                                     .id(point.id)
@@ -548,11 +579,37 @@ struct TTMRevenueChartView: View {
             }
         }
     }
-    
+
     private func barHeight(for value: Double, in maxHeight: CGFloat) -> CGFloat {
-        guard maxRevenue > 0 else { return 4 }
-        let normalized = value / maxRevenue
+        let range = revenueRange
+        let totalRange = range.max - range.min
+        guard totalRange > 0 else { return 0 }
+
+        // Distance from zero to value
+        let normalized = abs(value) / totalRange
         return maxHeight * normalized
+    }
+
+    /// Calculate the offset from bottom for a bar value
+    private func barOffset(for value: Double, barHeight: CGFloat, in chartHeight: CGFloat) -> CGFloat {
+        let zeroY = chartHeight * zeroLinePosition
+
+        if value >= 0 {
+            // Positive values: bar sits on zero line, grows upward
+            return zeroY
+        } else {
+            // Negative values: bar grows downward from zero line
+            return zeroY - barHeight
+        }
+    }
+
+    /// Calculate Y offset for a label at given index to align with gridlines
+    private func yOffsetForLabel(at index: Int) -> CGFloat {
+        let labels = getYAxisLabels()
+        let labelCount = CGFloat(labels.count)
+        let step = ChartConstants.chartHeight / (labelCount - 1)
+        // Center at 0 (middle of chart), then offset based on index
+        return -ChartConstants.chartHeight / 2 + (step * CGFloat(index))
     }
 
     private func formatDate(_ dateString: String) -> String {
@@ -568,7 +625,7 @@ struct TTMRevenueChartView: View {
     }
 
     private func formatYAxisValue(_ value: Double) -> String {
-        ChartUtilities.formatYAxisValue(value)
+        ChartUtilities.formatFinancialYAxisLabel(value, scale: valueScale)
     }
 }
 
@@ -581,6 +638,43 @@ struct EarningsChartsView: View {
     @State private var ttmData: [EarningsDataPoint] = []
     @State private var yoyData: [EarningsDataPoint] = []
     @State private var isLoading = false
+
+    // Pre-calculated table data for performance
+    struct TableRowData: Identifiable {
+        let id = UUID()
+        let period: String
+        let quarterlyEarnings: Double?
+        let ttmEarnings: Double?
+        let yoyPercent: Double?
+    }
+
+    var tableData: [TableRowData] {
+        let maxRows = min(max(quarterlyData.count, ttmData.count), 40)
+        guard maxRows > 0 else { return [] }
+
+        var rows: [TableRowData] = []
+        for index in 0..<maxRows {
+            let quarterly = index < quarterlyData.count ? quarterlyData[index] : nil
+            let ttm = index < ttmData.count ? ttmData[index] : nil
+
+            // Calculate YoY if possible
+            var yoy: Double? = nil
+            if let quarterly = quarterly,
+               index + 4 < quarterlyData.count,
+               quarterlyData[index + 4].earnings != 0 {
+                let prior = quarterlyData[index + 4].earnings
+                yoy = ((quarterly.earnings - prior) / prior) * 100
+            }
+
+            rows.append(TableRowData(
+                period: quarterly?.period ?? ttm?.period ?? "",
+                quarterlyEarnings: quarterly?.earnings,
+                ttmEarnings: ttm?.earnings,
+                yoyPercent: yoy
+            ))
+        }
+        return rows
+    }
 
     var body: some View {
         ScrollView {
@@ -604,7 +698,7 @@ struct EarningsChartsView: View {
                 })
 
                 // Combined Earnings Details Table
-                if !quarterlyData.isEmpty || !ttmData.isEmpty {
+                if !tableData.isEmpty {
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Earnings Details")
                             .font(.headline)
@@ -623,24 +717,17 @@ struct EarningsChartsView: View {
                                 Divider()
 
                                 // Quarter labels
-                                ForEach(0..<min(max(quarterlyData.count, ttmData.count), 40), id: \.self) { index in
+                                ForEach(tableData) { row in
                                     VStack(spacing: 0) {
-                                        if index < quarterlyData.count {
-                                            Text(formatDate(quarterlyData[index].period))
-                                                .font(.caption)
-                                                .fontWeight(.medium)
-                                                .lineLimit(1)
-                                                .minimumScaleFactor(0.8)
-                                                .frame(width: 80, alignment: .leading)
-                                                .padding(.vertical, 8)
-                                        } else {
-                                            Text("-")
-                                                .font(.caption)
-                                                .frame(width: 80, alignment: .leading)
-                                                .padding(.vertical, 8)
-                                        }
+                                        Text(formatDate(row.period))
+                                            .font(.caption)
+                                            .fontWeight(.medium)
+                                            .lineLimit(1)
+                                            .minimumScaleFactor(0.8)
+                                            .frame(width: 80, alignment: .leading)
+                                            .padding(.vertical, 8)
 
-                                        if index < min(max(quarterlyData.count, ttmData.count), 40) - 1 {
+                                        if row.id != tableData.last?.id {
                                             Divider()
                                         }
                                     }
@@ -673,16 +760,16 @@ struct EarningsChartsView: View {
 
                                     Divider()
 
-                                    // Data Rows
-                                    ForEach(0..<min(max(quarterlyData.count, ttmData.count), 40), id: \.self) { index in
+                                    // Data Rows - simplified with pre-calculated values
+                                    ForEach(tableData) { row in
                                         VStack(spacing: 0) {
                                             HStack(spacing: 0) {
                                                 // Quarterly value
-                                                if index < quarterlyData.count {
-                                                    Text(formatValue(quarterlyData[index].earnings))
+                                                if let earnings = row.quarterlyEarnings {
+                                                    Text(formatValue(earnings))
                                                         .font(.caption)
                                                         .fontWeight(.semibold)
-                                                        .foregroundStyle(quarterlyData[index].earnings >= 0 ? .blue : .red)
+                                                        .foregroundStyle(earnings >= 0 ? .blue : .red)
                                                         .frame(width: 120, alignment: .trailing)
                                                 } else {
                                                     Text("-")
@@ -691,11 +778,11 @@ struct EarningsChartsView: View {
                                                 }
 
                                                 // TTM value
-                                                if index < ttmData.count {
-                                                    Text(formatValue(ttmData[index].earnings))
+                                                if let ttmEarnings = row.ttmEarnings {
+                                                    Text(formatValue(ttmEarnings))
                                                         .font(.caption)
                                                         .fontWeight(.semibold)
-                                                        .foregroundStyle(ttmData[index].earnings >= 0 ? Color(red: 1.0, green: 0.0, blue: 1.0) : .red)
+                                                        .foregroundStyle(ttmEarnings >= 0 ? Color(red: 1.0, green: 0.0, blue: 1.0) : .red)
                                                         .frame(width: 120, alignment: .trailing)
                                                 } else {
                                                     Text("-")
@@ -703,12 +790,8 @@ struct EarningsChartsView: View {
                                                         .frame(width: 120, alignment: .trailing)
                                                 }
 
-                                                // YoY % value (compare to 4 quarters ago)
-                                                if index + 4 < quarterlyData.count,
-                                                   quarterlyData[index + 4].earnings != 0 {
-                                                    let current = quarterlyData[index].earnings
-                                                    let prior = quarterlyData[index + 4].earnings
-                                                    let yoy = ((current - prior) / prior) * 100
+                                                // YoY % value (pre-calculated)
+                                                if let yoy = row.yoyPercent {
                                                     Text(String(format: "%+.1f%%", yoy))
                                                         .font(.caption)
                                                         .fontWeight(.semibold)
@@ -723,7 +806,7 @@ struct EarningsChartsView: View {
                                             .padding(.vertical, 8)
                                             .padding(.trailing, 16)
 
-                                            if index < min(max(quarterlyData.count, ttmData.count), 40) - 1 {
+                                            if row.id != tableData.last?.id {
                                                 Divider()
                                             }
                                         }
@@ -2009,7 +2092,7 @@ struct RevenueChartView: View {
     let symbol: String
     let apiService: StockAPIService
     var onDataLoaded: (([RevenueDataPoint]) -> Void)? = nil
-    
+
     @State private var revenueData: [RevenueDataPoint] = []
     @State private var isLoading = false
     @State private var selectedBar: UUID?
@@ -2020,13 +2103,28 @@ struct RevenueChartView: View {
         return Array(sorted.suffix(ChartConstants.quarterlyDataLimit))
     }
 
-    var maxRevenue: Double {
-        let actualMax = displayData.map { $0.revenue }.max() ?? 0
-        return ChartUtilities.roundToNiceNumber(actualMax * 1.05)
+    var revenueRange: (min: Double, max: Double) {
+        let values = displayData.map { $0.revenue }
+        return ChartUtilities.calculateAdaptiveRange(values: values)
+    }
+
+    private var valueScale: ChartUtilities.ValueScale {
+        let values = displayData.map { $0.revenue }
+        return ChartUtilities.detectValueScale(values: values)
     }
 
     private func getYAxisLabels() -> [Double] {
-        ChartUtilities.generateYAxisLabels(maxValue: maxRevenue)
+        let range = revenueRange
+        return ChartUtilities.generateYAxisLabels(minValue: range.min, maxValue: range.max)
+    }
+
+    /// Calculate the Y position where zero line sits (as fraction of chart height from bottom)
+    private var zeroLinePosition: CGFloat {
+        let range = revenueRange
+        let totalRange = range.max - range.min
+        guard totalRange > 0 else { return 0 }
+        // Zero position as fraction from bottom: -min / totalRange
+        return CGFloat(-range.min / totalRange)
     }
     
     var body: some View {
@@ -2065,16 +2163,13 @@ struct RevenueChartView: View {
                                 let dynamicBarWidth = max((availableWidth - (barCount - 1) * ChartConstants.barSpacing) / barCount, 3)
 
                                 HStack(alignment: .center, spacing: 8) {
-                                    // Fixed Y-axis on the left
-                                    VStack(alignment: .trailing, spacing: 0) {
+                                    // Fixed Y-axis on the left - labels aligned with gridlines
+                                    ZStack(alignment: .trailing) {
                                         ForEach(Array(getYAxisLabels().enumerated()), id: \.offset) { index, value in
                                             Text(formatYAxisValue(value))
                                                 .font(.caption2)
                                                 .foregroundStyle(.secondary)
-
-                                            if index < getYAxisLabels().count - 1 {
-                                                Spacer()
-                                            }
+                                                .offset(y: yOffsetForLabel(at: index))
                                         }
                                     }
                                     .frame(width: ChartConstants.yAxisWidth, height: ChartConstants.chartHeight)
@@ -2082,19 +2177,31 @@ struct RevenueChartView: View {
                                     // Chart area - no scrolling, all bars visible
                                     VStack(spacing: 0) {
                                         ZStack(alignment: .bottom) {
+                                            // Background gridlines
                                             VStack(spacing: 0) {
-                                                ForEach(0..<5) { index in
+                                                ForEach(Array(getYAxisLabels().enumerated()), id: \.offset) { index, _ in
                                                     Divider()
                                                         .background(Color.gray.opacity(0.2))
-                                                    if index < 4 {
+                                                    if index < getYAxisLabels().count - 1 {
                                                         Spacer()
                                                     }
                                                 }
                                             }
                                             .frame(height: ChartConstants.chartHeight)
 
+                                            // Highlighted zero line (only if range spans negative/positive)
+                                            if revenueRange.min < 0 && revenueRange.max > 0 {
+                                                Rectangle()
+                                                    .fill(Color.gray.opacity(0.5))
+                                                    .frame(height: 1)
+                                                    .offset(y: -(ChartConstants.chartHeight * zeroLinePosition))
+                                            }
+
                                             HStack(alignment: .bottom, spacing: ChartConstants.barSpacing) {
                                                 ForEach(Array(displayData.enumerated()), id: \.element.id) { index, point in
+                                                    let heightValue = barHeight(for: point.revenue, in: ChartConstants.chartHeight)
+                                                    let offsetValue = barOffset(for: point.revenue, barHeight: heightValue, in: ChartConstants.chartHeight)
+
                                                     VStack(spacing: 4) {
                                                         if selectedBar == point.id {
                                                             VStack(spacing: 2) {
@@ -2128,18 +2235,25 @@ struct RevenueChartView: View {
 
                                                         Spacer(minLength: 0)
 
-                                                        RoundedRectangle(cornerRadius: 2)
-                                                            .fill(selectedBar == point.id ? Color.blue.opacity(0.8) : Color.blue)
-                                                            .frame(width: dynamicBarWidth, height: barHeight(for: point.revenue, in: ChartConstants.barChartHeight))
-                                                            .onTapGesture {
-                                                                withAnimation(.easeInOut(duration: 0.2)) {
-                                                                    if selectedBar == point.id {
-                                                                        selectedBar = nil
-                                                                    } else {
-                                                                        selectedBar = point.id
+                                                        // Bar positioned at zero line
+                                                        ZStack(alignment: .bottom) {
+                                                            Color.clear
+                                                                .frame(height: ChartConstants.chartHeight)
+
+                                                            RoundedRectangle(cornerRadius: 2)
+                                                                .fill(selectedBar == point.id ? Color.blue.opacity(0.8) : Color.blue)
+                                                                .frame(width: dynamicBarWidth, height: heightValue)
+                                                                .offset(y: -offsetValue)
+                                                                .onTapGesture {
+                                                                    withAnimation(.easeInOut(duration: 0.2)) {
+                                                                        if selectedBar == point.id {
+                                                                            selectedBar = nil
+                                                                        } else {
+                                                                            selectedBar = point.id
+                                                                        }
                                                                     }
                                                                 }
-                                                            }
+                                                        }
                                                     }
                                                     .frame(width: dynamicBarWidth, height: 290, alignment: .bottom)
                                                     .id(point.id)
@@ -2204,11 +2318,37 @@ struct RevenueChartView: View {
             }
         }
     }
-    
+
     private func barHeight(for value: Double, in maxHeight: CGFloat) -> CGFloat {
-        guard maxRevenue > 0 else { return 4 }
-        let normalized = value / maxRevenue
+        let range = revenueRange
+        let totalRange = range.max - range.min
+        guard totalRange > 0 else { return 0 }
+
+        // Distance from zero to value
+        let normalized = abs(value) / totalRange
         return maxHeight * normalized
+    }
+
+    /// Calculate the offset from bottom for a bar value
+    private func barOffset(for value: Double, barHeight: CGFloat, in chartHeight: CGFloat) -> CGFloat {
+        let zeroY = chartHeight * zeroLinePosition
+
+        if value >= 0 {
+            // Positive values: bar sits on zero line, grows upward
+            return zeroY
+        } else {
+            // Negative values: bar grows downward from zero line
+            return zeroY - barHeight
+        }
+    }
+
+    /// Calculate Y offset for a label at given index to align with gridlines
+    private func yOffsetForLabel(at index: Int) -> CGFloat {
+        let labels = getYAxisLabels()
+        let labelCount = CGFloat(labels.count)
+        let step = ChartConstants.chartHeight / (labelCount - 1)
+        // Center at 0 (middle of chart), then offset based on index
+        return -ChartConstants.chartHeight / 2 + (step * CGFloat(index))
     }
 
     private func formatDate(_ dateString: String) -> String {
@@ -2224,7 +2364,7 @@ struct RevenueChartView: View {
     }
 
     private func formatYAxisValue(_ value: Double) -> String {
-        ChartUtilities.formatYAxisValue(value)
+        ChartUtilities.formatFinancialYAxisLabel(value, scale: valueScale)
     }
 }
 

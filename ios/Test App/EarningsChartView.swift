@@ -27,6 +27,11 @@ struct EarningsChartView: View {
         return ChartUtilities.calculateAdaptiveRange(values: values)
     }
 
+    private var valueScale: ChartUtilities.ValueScale {
+        let values = displayData.map { $0.earnings }
+        return ChartUtilities.detectValueScale(values: values)
+    }
+
     private func getYAxisLabels() -> [Double] {
         let range = earningsRange
         return ChartUtilities.generateYAxisLabels(minValue: range.min, maxValue: range.max)
@@ -91,16 +96,25 @@ struct EarningsChartView: View {
                                     // Chart area - no scrolling, all bars visible
                                     VStack(spacing: 0) {
                                         ZStack(alignment: .bottom) {
+                                            // Background gridlines
                                             VStack(spacing: 0) {
-                                                ForEach(0..<5) { index in
+                                                ForEach(Array(getYAxisLabels().enumerated()), id: \.offset) { index, _ in
                                                     Divider()
                                                         .background(Color.gray.opacity(0.2))
-                                                    if index < 4 {
+                                                    if index < getYAxisLabels().count - 1 {
                                                         Spacer()
                                                     }
                                                 }
                                             }
                                             .frame(height: ChartConstants.chartHeight)
+
+                                            // Highlighted zero line (only if range spans negative/positive)
+                                            if earningsRange.min < 0 && earningsRange.max > 0 {
+                                                Rectangle()
+                                                    .fill(Color.gray.opacity(0.5))
+                                                    .frame(height: 1)
+                                                    .offset(y: -(ChartConstants.chartHeight * zeroLinePosition))
+                                            }
 
                                             HStack(alignment: .bottom, spacing: ChartConstants.barSpacing) {
                                                 ForEach(Array(displayData.enumerated()), id: \.element.id) { index, point in
@@ -228,11 +242,11 @@ struct EarningsChartView: View {
     private func barHeight(for value: Double, in maxHeight: CGFloat) -> CGFloat {
         let range = earningsRange
         let totalRange = range.max - range.min
-        guard totalRange > 0 else { return 4 }
+        guard totalRange > 0 else { return 0 }
 
-        // Normalize value to 0-1 range based on total chart range
+        // Distance from zero to value
         let normalized = abs(value) / totalRange
-        return max(maxHeight * normalized, 2) // Minimum 2px for visibility
+        return maxHeight * normalized
     }
 
     /// Calculate the offset from bottom for a bar value
@@ -261,7 +275,7 @@ struct EarningsChartView: View {
     }
 
     private func formatYAxisValue(_ value: Double) -> String {
-        ChartUtilities.formatYAxisValue(value)
+        ChartUtilities.formatFinancialYAxisLabel(value, scale: valueScale)
     }
 
     /// Calculate Y offset for a label at given index to align with gridlines
