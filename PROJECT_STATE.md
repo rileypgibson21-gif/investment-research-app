@@ -1,6 +1,6 @@
 # Investment Research App - Current Project State
 
-**Last Updated:** 2025-10-30
+**Last Updated:** 2025-11-02
 **Current Version:** v1.0.0+
 **Status:** ✅ Production Ready (App Store Compliant)
 
@@ -88,8 +88,8 @@ InvestmentResearchApp/
 - ✅ **Revenue Chart** (TTM) - Blue bars, dynamic Y-axis
 - ✅ **Earnings Chart** (quarterly) - Blue bars, supports negative values
 - ✅ **Earnings Chart** (TTM) - Blue bars, supports negative values
-- ✅ **YoY Growth Chart** (revenue) - Green/red bars, centered at zero
-- ✅ **YoY Growth Chart** (earnings) - Green/red bars, centered at zero
+- ✅ **TTM YoY Growth Chart** (revenue) - Green/red bars, centered at zero, TTM-based
+- ✅ **TTM YoY Growth Chart** (earnings) - Green/red bars, centered at zero, TTM-based
 
 ### Chart Features
 - ✅ Dynamic bar widths (all 40 bars fit on screen, no scrolling)
@@ -132,7 +132,64 @@ struct ChartConstants {
 
 ---
 
-## 🔧 Recent Changes (This Session)
+## 🔧 Recent Changes (Latest Session - 2025-11-02)
+
+### 5 Critical Chart Rendering Fixes (Commit: 561a93e)
+
+**1. Y-Axis Inversion Fix**
+   - **Problem:** All charts displayed with inverted Y-axis (high values at bottom)
+   - **Root Cause:** Incorrect offset calculation in `yOffsetForLabel()` function
+   - **Solution:** Changed from `-chartHeight/2 + (chartHeight * fraction)` to `chartHeight/2 - (chartHeight * fraction)`
+   - **Impact:** All 4 chart views now display correctly (high at top, low at bottom)
+   - **Files:** YoYGrowthChartView.swift:91, YoYEarningsGrowthChartView.swift:91, EarningsChartView.swift:297, TTMEarningsChartView.swift:314
+
+**2. YoY Charts Converted to TTM Data**
+   - **Change:** Both YoY growth charts now use TTM data instead of quarterly
+   - **Benefits:** Eliminates seasonal variations, provides smoother trend visualization
+   - **API Changes:**
+     - `fetchRevenue()` → `fetchTTMRevenue()`
+     - `fetchEarnings()` → `fetchTTMEarnings()`
+   - **Titles Updated:** Charts now titled "TTM YoY Revenue/Earnings Growth"
+   - **Files:** YoYGrowthChartView.swift, YoYEarningsGrowthChartView.swift
+
+**3. Details Tables Updated for TTM**
+   - **Problem:** YoY columns in details tables still used quarterly data
+   - **Solution:** Updated both Revenue and Earnings details tables to calculate YoY using TTM data
+   - **Consistency:** Charts and tables now use same data source
+   - **Files:** ContentView.swift:293-308 (revenue), ContentView.swift:660-667 (earnings)
+
+**4. Zero Line Discontinuity Fixed**
+   - **Problem:** Zero gridline appeared broken/discontinuous where bars crossed it
+   - **Root Cause:** Bars rendered on top layer, obscuring gridlines beneath
+   - **Solution:** Reordered ZStack layers:
+     1. Data bars (back layer)
+     2. Gridlines with `.allowsHitTesting(false)` (middle layer)
+     3. Zero line with `.allowsHitTesting(false)` (front layer - most prominent)
+   - **Impact:** Zero line now renders continuously across entire chart
+   - **Files:** All 4 chart views
+
+**5. Gridline-Label Alignment Fix (Critical)**
+   - **Problem:** Gridlines misaligned with labels on asymmetric ranges (e.g., AVGO missing +250% gridline)
+   - **Root Cause:** Two independent positioning systems:
+     - Labels used value-based proportional positioning (`yOffsetForLabel()`)
+     - Gridlines used equal spacing (`VStack` with `Spacer()`)
+   - **Solution:** Replaced VStack approach with ZStack using same value-based offset calculation as labels
+   - **Architecture:** `generateNiceTickValues()` is now single source of truth for both labels AND gridlines
+   - **Impact:** Perfect alignment on all ranges (symmetric and asymmetric)
+   - **Files:** All 4 chart views
+
+### Backend Data Accuracy Improvements
+   - **Problem:** Some companies (e.g., Mastercard) showed duplicate/cumulative revenue data
+   - **Solution:** Enhanced deduplication logic in `extractRevenue()` and `extractEarnings()`:
+     - Filter to only include quarterly frames (exclude cumulative data)
+     - Prefer amended filings (10-Q/A over 10-Q)
+     - Prefer later filing dates when multiple filings exist for same period
+   - **Impact:** More accurate financial data for all companies
+   - **File:** backend/src/index.js
+
+---
+
+## 🔧 Previous Session Changes (2025-10-30)
 
 1. **YoY Chart Restructure**
    - Removed horizontal scrolling
@@ -246,7 +303,15 @@ private func barOffset(for value: Double, barHeight: CGFloat, in chartHeight: CG
 
 ## 🐛 Known Issues & Considerations
 
-### ✅ Resolved
+### ✅ Resolved (2025-11-02 Session)
+- **Y-axis inversion** - Fixed coordinate system in offset calculations
+- **Gridline-label misalignment** - Unified positioning using value-based offsets
+- **Zero line discontinuity** - Reordered ZStack layers (bars → gridlines → zero line)
+- **YoY data consistency** - Converted YoY charts to TTM data
+- **Details table YoY accuracy** - Updated to use TTM data for calculations
+- **Backend data duplication** - Enhanced deduplication logic for quarterly data
+
+### ✅ Previously Resolved
 - Build performance (charts split into separate files)
 - Compiler timeouts (extracted complex views)
 - Y-axis label alignment (using ZStack with offsets)
@@ -493,5 +558,121 @@ struct TickerSuggestion: Identifiable, Codable {
 
 ---
 
+## 🧠 Critical Architecture Patterns (Must Know)
+
+### Chart Rendering Architecture (Post-2025-11-02 Fixes)
+
+**1. Single Source of Truth for Tick Positions**
+```swift
+// ChartUtilities.swift generates all tick positions
+static func generateYAxisLabels(minValue: Double, maxValue: Double) -> [Double] {
+    return generateNiceTickValues(min: minValue, max: maxValue, targetCount: 5)
+}
+```
+- **BOTH labels AND gridlines** must use `getYAxisLabels()` to get tick positions
+- **NEVER** use independent positioning systems (e.g., VStack with Spacer for gridlines)
+- Labels and gridlines both use `yOffsetForLabel(at: index)` for positioning
+
+**2. Y-Axis Coordinate System**
+```swift
+// Correct offset calculation (DO NOT CHANGE)
+return ChartConstants.chartHeight / 2 - (ChartConstants.chartHeight * fractionFromBottom)
+```
+- Negative offset = moves UP (toward higher values)
+- Positive offset = moves DOWN (toward lower values)
+- Formula: `center - (height × fraction)` where fraction ∈ [0, 1]
+
+**3. ZStack Layer Ordering (Visual Hierarchy)**
+```swift
+ZStack(alignment: .bottom) {
+    // 1. Data bars (BACK layer)
+    HStack { /* bars */ }
+
+    // 2. Gridlines (MIDDLE layer)
+    ZStack { /* gridlines with .allowsHitTesting(false) */ }
+
+    // 3. Zero line (FRONT layer - most prominent)
+    Rectangle() /* zero line with .allowsHitTesting(false) */
+}
+```
+- Order matters: first element = back layer, last element = front layer
+- Gridlines must have `.allowsHitTesting(false)` to allow bar taps
+
+**4. Value-Based vs Equal Spacing**
+- ❌ **NEVER use VStack with Spacer() for gridlines** - causes misalignment on asymmetric ranges
+- ✅ **ALWAYS use ZStack with value-based offsets** - ensures proportional spacing
+- Asymmetric ranges (e.g., -35% to +250%) require proportional positioning
+
+**5. Bar Positioning (Offset-Based, Not Split)**
+```swift
+// All charts use unified offset approach (NOT split top/bottom halves)
+RoundedRectangle(cornerRadius: 2)
+    .fill(barColor)
+    .frame(width: dynamicBarWidth, height: heightValue)
+    .offset(y: -offsetValue)  // Position relative to zero line
+```
+- Positive bars: offset = zeroY (sit on zero line, grow upward)
+- Negative bars: offset = zeroY - barHeight (grow downward from zero line)
+
+### Data Source Consistency
+
+**YoY Charts Use TTM Data (Not Quarterly)**
+- `YoYGrowthChartView.swift` → uses `fetchTTMRevenue()`
+- `YoYEarningsGrowthChartView.swift` → uses `fetchTTMEarnings()`
+- Chart titles: "TTM YoY Revenue/Earnings Growth"
+- Details tables also use TTM for YoY calculations
+- **Rationale:** Eliminates seasonal variations, provides smoother trends
+
+### Backend Deduplication Logic
+
+**Quarterly Data Filtering (backend/src/index.js)**
+```javascript
+// Filter to only quarterly frames (exclude cumulative data)
+.filter(item => item.frame && /Q[1-4]/.test(item.frame))
+.sort((a, b) => {
+    if (a.end !== b.end) return b.end.localeCompare(a.end);
+
+    // Prefer amended filings (10-Q/A)
+    const aIsAmended = a.form && a.form.includes('/A');
+    const bIsAmended = b.form && b.form.includes('/A');
+    if (aIsAmended && !bIsAmended) return -1;
+    if (!aIsAmended && bIsAmended) return 1;
+
+    // Prefer later filing dates
+    return (b.filed || '').localeCompare(a.filed || '');
+})
+```
+- **MUST** filter by quarterly frame to exclude cumulative data
+- Prefer amended filings over original filings
+- Prefer later filing dates for same period
+
+---
+
+## 🎯 Quick Start for New Sessions
+
+**1. Read This File First**
+- Understand current architecture and recent changes
+- Review "Critical Architecture Patterns" section above
+- Check what issues are resolved vs pending
+
+**2. Check Git Status**
+```bash
+git status
+git log -5 --oneline
+```
+
+**3. Verify Current State**
+- Review recent commits to understand latest work
+- Check if there are uncommitted changes
+- Read commit messages for context
+
+**4. Common Tasks**
+- **Fix chart issue?** → Read "Critical Architecture Patterns" first
+- **Add new chart?** → Follow existing chart patterns (see any ChartView file)
+- **Modify backend?** → Remember deduplication logic and KV caching
+- **Change data display?** → Update both charts and details tables
+
+---
+
 **For Future Claude Code Sessions:**
-Start by reading this file to understand the current project state, architecture, and recent changes. Check git status and recent commits to see what was last worked on. Ask the user what they want to accomplish in this session.
+Start by reading this file to understand the current project state, architecture, and recent changes. Pay special attention to the "Critical Architecture Patterns" section to avoid re-introducing bugs. Check git status and recent commits to see what was last worked on. Ask the user what they want to accomplish in this session.
