@@ -700,7 +700,7 @@ struct EarningsChartsView: View {
                 // Combined Earnings Details Table
                 if !tableData.isEmpty {
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("Earnings Details")
+                        Text("Net Income Details")
                             .font(.headline)
                             .padding(.horizontal)
 
@@ -1646,14 +1646,14 @@ struct StockDetailView: View {
 
                 Button(action: { selectedTab = 2 }) {
                     if selectedTab == 2 {
-                        Label("Earnings", systemImage: "checkmark")
+                        Label("Net Income", systemImage: "checkmark")
                     } else {
-                        Text("Earnings")
+                        Text("Net Income")
                     }
                 }
             } label: {
                 HStack {
-                    Text(selectedTab == 0 ? "Overview" : selectedTab == 1 ? "Revenue" : "Earnings")
+                    Text(selectedTab == 0 ? "Overview" : selectedTab == 1 ? "Revenue" : "Net Income")
                         .fontWeight(.semibold)
                     Image(systemName: "chevron.down")
                         .font(.caption)

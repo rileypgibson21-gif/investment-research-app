@@ -77,7 +77,7 @@ struct TTMEarningsChartView: View {
                     Image(systemName: "chart.bar.xaxis")
                         .font(.system(size: 60))
                         .foregroundStyle(.gray)
-                    Text("No TTM earnings data available")
+                    Text("No TTM net income data available")
                         .foregroundStyle(.secondary)
                     Button("Retry") {
                         loadEarnings()
@@ -89,7 +89,7 @@ struct TTMEarningsChartView: View {
                     VStack(spacing: 20) {
                         // Chart with title
                         VStack(alignment: .leading, spacing: 16) {
-                            Text("Trailing Twelve Months Earnings")
+                            Text("Trailing Twelve Months Net Income")
                                 .font(.headline)
                                 .frame(maxWidth: .infinity, alignment: .center)
 

@@ -117,7 +117,7 @@ struct YoYEarningsGrowthChartView: View {
                     VStack(spacing: 20) {
                         // Chart with title
                         VStack(alignment: .leading, spacing: 16) {
-                            Text("TTM YoY Earnings Growth")
+                            Text("TTM YoY Net Income Growth")
                                 .font(.headline)
                                 .frame(maxWidth: .infinity, alignment: .center)
 

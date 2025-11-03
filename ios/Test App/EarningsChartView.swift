@@ -60,7 +60,7 @@ struct EarningsChartView: View {
                     Image(systemName: "chart.bar.xaxis")
                         .font(.system(size: 60))
                         .foregroundStyle(.gray)
-                    Text("No earnings data available")
+                    Text("No net income data available")
                         .foregroundStyle(.secondary)
                     Button("Retry") {
                         loadEarnings()
@@ -72,7 +72,7 @@ struct EarningsChartView: View {
                     VStack(spacing: 20) {
                         // Chart with title
                         VStack(alignment: .leading, spacing: 16) {
-                            Text("Quarterly Earnings")
+                            Text("Quarterly Net Income")
                                 .font(.headline)
                                 .frame(maxWidth: .infinity, alignment: .center)
 
