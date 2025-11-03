@@ -226,7 +226,7 @@ enum ChartUtilities {
 
     /// Calculate Y-axis range that adapts to data
     /// - All positive values: returns (0, maxValue) - Y-axis starts at zero
-    /// - Has negative values: returns (minValue, maxValue) - Y-axis extends below zero
+    /// - Has negative values: returns (minValue, maxValue) aligned to tick intervals for perfect spacing
     static func calculateAdaptiveRange(values: [Double]) -> (min: Double, max: Double) {
         guard !values.isEmpty else { return (0, 0) }
 
@@ -237,9 +237,18 @@ enum ChartUtilities {
             // All positive: scale from 0 to nice max (current behavior)
             return (0, roundToNiceNumber(maxValue * 1.05))
         } else {
-            // Has negatives: scale to include both min and max
-            let niceMin = -roundToNiceNumber(abs(minValue) * 1.05)
-            let niceMax = roundToNiceNumber(max(maxValue, 0) * 1.05)
+            // Has negatives: calculate range using same logic as tick generation
+            // to ensure perfect alignment between bars, gridlines, and labels
+            let range = maxValue - minValue
+            let roughInterval = range / 4.0  // Target ~5 ticks
+            let niceInterval = calculateNiceInterval(roughInterval)
+
+            // Round min DOWN to nearest interval multiple (e.g., -35 with interval 100 → -100)
+            let niceMin = floor(minValue / niceInterval) * niceInterval
+
+            // Round max UP to nearest interval multiple (e.g., 250 with interval 100 → 300)
+            let niceMax = ceil(maxValue / niceInterval) * niceInterval
+
             return (niceMin, niceMax)
         }
     }
@@ -264,6 +273,7 @@ enum ChartUtilities {
     }
 
     /// Generate nice tick values spanning min to max
+    /// Ensures even spacing, especially when range spans zero
     private static func generateNiceTickValues(min: Double, max: Double, targetCount: Int) -> [Double] {
         let range = max - min
         guard range > 0 else { return [0] }
@@ -274,27 +284,38 @@ enum ChartUtilities {
         // Round to nice number (1, 2, 5, 10, 20, 25, 50, 100, etc.)
         let niceInterval = calculateNiceInterval(roughInterval)
 
-        // Generate ticks
-        var ticks: [Double] = []
+        // When range spans zero, generate ticks symmetrically from zero
+        // This ensures perfect even spacing and zero is always included
+        if min < 0 && max > 0 {
+            var ticks: [Double] = [0]
 
-        // Start at nice number at or below min
+            // Generate positive ticks
+            var tick = niceInterval
+            while tick <= max + (niceInterval * 0.01) {
+                ticks.append(tick)
+                tick += niceInterval
+            }
+
+            // Generate negative ticks
+            tick = -niceInterval
+            while tick >= min - (niceInterval * 0.01) {
+                ticks.append(tick)
+                tick -= niceInterval
+            }
+
+            return ticks.sorted(by: >)
+        }
+
+        // For non-zero-spanning ranges, use original algorithm
+        var ticks: [Double] = []
         let startTick = floor(min / niceInterval) * niceInterval
 
         var currentTick = startTick
-        while currentTick <= max + (niceInterval * 0.01) { // Small epsilon for floating point
+        while currentTick <= max + (niceInterval * 0.01) {
             if currentTick >= min - (niceInterval * 0.01) {
                 ticks.append(currentTick)
             }
             currentTick += niceInterval
-        }
-
-        // Ensure we have 0 if range spans it and it's not already included
-        if min < 0 && max > 0 {
-            let hasZero = ticks.contains(where: { abs($0) < niceInterval * 0.01 })
-            if !hasZero {
-                ticks.append(0)
-                ticks.sort(by: >)
-            }
         }
 
         return ticks.sorted(by: >)

@@ -76,12 +76,19 @@ struct YoYEarningsGrowthChartView: View {
     }
 
     /// Calculate Y offset for a label at given index to align with gridlines
+    /// Uses value-based positioning to ensure proportional spacing for asymmetric ranges
     private func yOffsetForLabel(at index: Int) -> CGFloat {
         let labels = getYAxisLabels()
-        let labelCount = CGFloat(labels.count)
-        let step = ChartConstants.chartHeight / (labelCount - 1)
-        // Center at 0 (middle of chart), then offset based on index
-        return -ChartConstants.chartHeight / 2 + (step * CGFloat(index))
+        let range = growthRange
+        let totalRange = range.max - range.min
+        guard totalRange > 0 else { return 0 }
+
+        let labelValue = labels[index]
+        // Calculate position as fraction from bottom (0 = bottom, 1 = top)
+        let fractionFromBottom = (labelValue - range.min) / totalRange
+
+        // Convert to offset from center (middle of chart = 0)
+        return ChartConstants.chartHeight / 2 - (ChartConstants.chartHeight * fractionFromBottom)
     }
 
     var body: some View {
@@ -100,7 +107,7 @@ struct YoYEarningsGrowthChartView: View {
                         .foregroundStyle(.gray)
                     Text("Insufficient data for YoY growth")
                         .foregroundStyle(.secondary)
-                    Text("Need at least 5 quarters of data")
+                    Text("Need at least 5 TTM periods of data")
                         .font(.caption)
                         .foregroundStyle(.tertiary)
                     Spacer()
@@ -110,7 +117,7 @@ struct YoYEarningsGrowthChartView: View {
                     VStack(spacing: 20) {
                         // Chart with title
                         VStack(alignment: .leading, spacing: 16) {
-                            Text("Year-over-Year Earnings Growth")
+                            Text("TTM YoY Earnings Growth")
                                 .font(.headline)
                                 .frame(maxWidth: .infinity, alignment: .center)
 
@@ -126,6 +133,8 @@ struct YoYEarningsGrowthChartView: View {
                                             Text(formatYAxisValue(value))
                                                 .font(.caption2)
                                                 .foregroundStyle(.secondary)
+                                                .lineLimit(1)
+                                                .minimumScaleFactor(0.7)
                                                 .offset(y: yOffsetForLabel(at: index))
                                         }
                                     }
@@ -133,29 +142,8 @@ struct YoYEarningsGrowthChartView: View {
 
                                     // Chart area - no scrolling, all bars visible
                                         VStack(spacing: 0) {
-                                            // Space for tooltips above the chart
-                                            Spacer()
-                                                .frame(height: 60)
-
                                             ZStack(alignment: .bottom) {
-                                                // Background gridlines
-                                                VStack(spacing: 0) {
-                                                    ForEach(Array(getYAxisLabels().enumerated()), id: \.offset) { index, _ in
-                                                        Divider()
-                                                            .background(Color.gray.opacity(0.2))
-                                                        if index < getYAxisLabels().count - 1 {
-                                                            Spacer()
-                                                        }
-                                                    }
-                                                }
-                                                .frame(height: ChartConstants.chartHeight)
-
-                                                // Highlighted zero line (always visible for growth charts)
-                                                Rectangle()
-                                                    .fill(Color.gray.opacity(0.5))
-                                                    .frame(height: 1)
-                                                    .offset(y: -(ChartConstants.chartHeight * zeroLinePosition))
-
+                                                // Data bars (drawn first, behind gridlines)
                                                 HStack(alignment: .bottom, spacing: ChartConstants.barSpacing) {
                                                     ForEach(Array(displayData.enumerated()), id: \.element.id) { index, point in
                                                         let heightValue = barHeight(for: point.growthPercent, in: ChartConstants.chartHeight)
@@ -223,6 +211,24 @@ struct YoYEarningsGrowthChartView: View {
                                                     }
                                                 }
                                                 .padding(.horizontal, 4)
+
+                                                // Background gridlines (drawn second, on top of bars)
+                                                ZStack {
+                                                    ForEach(Array(getYAxisLabels().enumerated()), id: \.offset) { index, value in
+                                                        Divider()
+                                                            .background(Color.gray.opacity(0.2))
+                                                            .offset(y: yOffsetForLabel(at: index))
+                                                    }
+                                                }
+                                                .frame(height: ChartConstants.chartHeight)
+                                                .allowsHitTesting(false)
+
+                                                // Highlighted zero line (drawn last, most prominent)
+                                                Rectangle()
+                                                    .fill(Color.gray.opacity(0.5))
+                                                    .frame(height: 1)
+                                                    .offset(y: -(ChartConstants.chartHeight * zeroLinePosition))
+                                                    .allowsHitTesting(false)
                                             }
 
                                             // X-axis labels - show every 9th period for 36 bars
@@ -265,7 +271,7 @@ struct YoYEarningsGrowthChartView: View {
 
         Task {
             do {
-                let data = try await apiService.fetchEarnings(symbol: symbol)
+                let data = try await apiService.fetchTTMEarnings(symbol: symbol)
                 await MainActor.run {
                     earningsData = data
                     onDataLoaded?(data)

@@ -297,8 +297,23 @@ function extractRevenue(facts) {
   }
 
   // Deduplicate quarterly data
+  // Filter to only include items with quarterly 'frame' field (excludes cumulative data)
+  // Prefer amended filings (10-Q/A) and later filing dates
   const quarterlyDeduped = allQuarterly
-    .sort((a, b) => b.end.localeCompare(a.end))
+    .filter(item => item.frame && /Q[1-4]/.test(item.frame)) // Only true quarterly frames
+    .sort((a, b) => {
+      // First sort by end date (descending)
+      if (a.end !== b.end) return b.end.localeCompare(a.end);
+
+      // For same period, prefer amended filings (forms with /A suffix)
+      const aIsAmended = a.form && a.form.includes('/A');
+      const bIsAmended = b.form && b.form.includes('/A');
+      if (aIsAmended && !bIsAmended) return -1;
+      if (!aIsAmended && bIsAmended) return 1;
+
+      // Then prefer later filing dates
+      return (b.filed || '').localeCompare(a.filed || '');
+    })
     .reduce((acc, item) => {
       if (!acc.find(x => x.period === item.end)) {
         acc.push({ period: item.end, revenue: item.val, start: item.start });
@@ -421,8 +436,23 @@ function extractEarnings(facts) {
   }
 
   // Deduplicate quarterly data
+  // Filter to only include items with quarterly 'frame' field (excludes cumulative data)
+  // Prefer amended filings (10-Q/A) and later filing dates
   const quarterlyDeduped = allQuarterly
-    .sort((a, b) => b.end.localeCompare(a.end))
+    .filter(item => item.frame && /Q[1-4]/.test(item.frame)) // Only true quarterly frames
+    .sort((a, b) => {
+      // First sort by end date (descending)
+      if (a.end !== b.end) return b.end.localeCompare(a.end);
+
+      // For same period, prefer amended filings (forms with /A suffix)
+      const aIsAmended = a.form && a.form.includes('/A');
+      const bIsAmended = b.form && b.form.includes('/A');
+      if (aIsAmended && !bIsAmended) return -1;
+      if (!aIsAmended && bIsAmended) return 1;
+
+      // Then prefer later filing dates
+      return (b.filed || '').localeCompare(a.filed || '');
+    })
     .reduce((acc, item) => {
       if (!acc.find(x => x.period === item.end)) {
         acc.push({ period: item.end, earnings: item.val, start: item.start });

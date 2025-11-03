@@ -290,11 +290,11 @@ struct RevenueChartsView: View {
                                                         .frame(width: 120, alignment: .trailing)
                                                 }
 
-                                                // YoY % value (compare to 4 quarters ago)
-                                                if index + 4 < quarterlyData.count,
-                                                   quarterlyData[index + 4].revenue != 0 {
-                                                    let current = quarterlyData[index].revenue
-                                                    let prior = quarterlyData[index + 4].revenue
+                                                // YoY % value (compare TTM to 4 periods ago)
+                                                if index + 4 < ttmData.count,
+                                                   ttmData[index + 4].revenue != 0 {
+                                                    let current = ttmData[index].revenue
+                                                    let prior = ttmData[index + 4].revenue
                                                     let yoy = ((current - prior) / prior) * 100
                                                     Text(String(format: "%+.1f%%", yoy))
                                                         .font(.caption)
@@ -657,13 +657,13 @@ struct EarningsChartsView: View {
             let quarterly = index < quarterlyData.count ? quarterlyData[index] : nil
             let ttm = index < ttmData.count ? ttmData[index] : nil
 
-            // Calculate YoY if possible
+            // Calculate YoY using TTM data if possible
             var yoy: Double? = nil
-            if let quarterly = quarterly,
-               index + 4 < quarterlyData.count,
-               quarterlyData[index + 4].earnings != 0 {
-                let prior = quarterlyData[index + 4].earnings
-                yoy = ((quarterly.earnings - prior) / prior) * 100
+            if let ttm = ttm,
+               index + 4 < ttmData.count,
+               ttmData[index + 4].earnings != 0 {
+                let prior = ttmData[index + 4].earnings
+                yoy = ((ttm.earnings - prior) / prior) * 100
             }
 
             rows.append(TableRowData(
