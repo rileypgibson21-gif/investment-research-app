@@ -12,8 +12,8 @@ import SwiftUI
 struct ChartExampleView: View {
     @State private var quarterlyRevenue: [FinancialDataPoint] = []
     @State private var ttmRevenue: [FinancialDataPoint] = []
-    @State private var quarterlyEarnings: [FinancialDataPoint] = []
-    @State private var ttmEarnings: [FinancialDataPoint] = []
+    @State private var quarterlyNetIncome: [FinancialDataPoint] = []
+    @State private var ttmNetIncome: [FinancialDataPoint] = []
     @State private var isLoading = false
     @State private var selectedMetric: MetricTab = .revenue
 
@@ -21,7 +21,7 @@ struct ChartExampleView: View {
 
     enum MetricTab: String, CaseIterable {
         case revenue = "Revenue"
-        case earnings = "Earnings"
+        case netIncome = "Net Income"
     }
 
     var body: some View {
@@ -47,10 +47,10 @@ struct ChartExampleView: View {
                             ttm: ttmRevenue,
                             ticker: ticker
                         )
-                    case .earnings:
-                        FinancialChartView.earnings(
-                            quarterly: quarterlyEarnings,
-                            ttm: ttmEarnings,
+                    case .netIncome:
+                        FinancialChartView.netIncome(
+                            quarterly: quarterlyNetIncome,
+                            ttm: ttmNetIncome,
                             ticker: ticker
                         )
                     }
@@ -94,12 +94,12 @@ struct ChartExampleView: View {
 
         do {
             // Fetch quarterly earnings and convert to chart data
-            let quarterlyResponse = try await apiService.fetchEarnings(symbol: ticker)
-            quarterlyEarnings = FinancialDataPoint.fromEarningsData(quarterlyResponse)
+            let quarterlyResponse = try await apiService.fetchNetIncome(symbol: ticker)
+            quarterlyNetIncome = FinancialDataPoint.fromNetIncomeData(quarterlyResponse)
 
             // Fetch TTM earnings and convert to chart data
-            let ttmResponse = try await apiService.fetchTTMEarnings(symbol: ticker)
-            ttmEarnings = FinancialDataPoint.fromEarningsData(ttmResponse)
+            let ttmResponse = try await apiService.fetchTTMNetIncome(symbol: ticker)
+            ttmNetIncome = FinancialDataPoint.fromNetIncomeData(ttmResponse)
         } catch {
             print("Error loading earnings: \(error)")
         }
@@ -126,14 +126,14 @@ extension StockAPIService {
     func getChartData(symbol: String) async throws -> (
         quarterlyRevenue: [FinancialDataPoint],
         ttmRevenue: [FinancialDataPoint],
-        quarterlyEarnings: [FinancialDataPoint],
-        ttmEarnings: [FinancialDataPoint]
+        quarterlyNetIncome: [FinancialDataPoint],
+        ttmNetIncome: [FinancialDataPoint]
     ) {
         // Fetch all data in parallel
         async let quarterly = fetchRevenue(symbol: symbol)
         async let ttm = fetchTTMRevenue(symbol: symbol)
-        async let quarterlyEarn = fetchEarnings(symbol: symbol)
-        async let ttmEarn = fetchTTMEarnings(symbol: symbol)
+        async let quarterlyEarn = fetchNetIncome(symbol: symbol)
+        async let ttmEarn = fetchTTMNetIncome(symbol: symbol)
 
         let results = try await (quarterly, ttm, quarterlyEarn, ttmEarn)
 
@@ -141,8 +141,8 @@ extension StockAPIService {
         return (
             quarterlyRevenue: FinancialDataPoint.fromRevenueData(results.0),
             ttmRevenue: FinancialDataPoint.fromRevenueData(results.1),
-            quarterlyEarnings: FinancialDataPoint.fromEarningsData(results.2),
-            ttmEarnings: FinancialDataPoint.fromEarningsData(results.3)
+            quarterlyNetIncome: FinancialDataPoint.fromNetIncomeData(results.2),
+            ttmNetIncome: FinancialDataPoint.fromNetIncomeData(results.3)
         )
     }
 }
@@ -159,8 +159,8 @@ struct FinancialChartModal: View {
     struct ChartData {
         let quarterlyRevenue: [FinancialDataPoint]
         let ttmRevenue: [FinancialDataPoint]
-        let quarterlyEarnings: [FinancialDataPoint]
-        let ttmEarnings: [FinancialDataPoint]
+        let quarterlyNetIncome: [FinancialDataPoint]
+        let ttmNetIncome: [FinancialDataPoint]
     }
 
     var body: some View {
@@ -187,9 +187,9 @@ struct FinancialChartModal: View {
                             Label("Revenue", systemImage: "chart.bar.fill")
                         }
 
-                        FinancialChartView.earnings(
-                            quarterly: data.quarterlyEarnings,
-                            ttm: data.ttmEarnings,
+                        FinancialChartView.netIncome(
+                            quarterly: data.quarterlyNetIncome,
+                            ttm: data.ttmNetIncome,
                             ticker: ticker
                         )
                         .tabItem {
@@ -224,8 +224,8 @@ struct FinancialChartModal: View {
             chartData = ChartData(
                 quarterlyRevenue: data.quarterlyRevenue,
                 ttmRevenue: data.ttmRevenue,
-                quarterlyEarnings: data.quarterlyEarnings,
-                ttmEarnings: data.ttmEarnings
+                quarterlyNetIncome: data.quarterlyNetIncome,
+                ttmNetIncome: data.ttmNetIncome
             )
         } catch {
             errorMessage = "Failed to load chart data: \(error.localizedDescription)"
@@ -284,7 +284,7 @@ struct StockDetailWithChartView: View {
                     // if showRevenue {
                     //     FinancialChartView.revenue(...)
                     // } else {
-                    //     FinancialChartView.earnings(...)
+                    //     FinancialChartView.netIncome(...)
                     // }
                 }
 

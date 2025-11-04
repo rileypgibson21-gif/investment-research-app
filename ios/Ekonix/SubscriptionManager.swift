@@ -1,6 +1,6 @@
 //
 //  SubscriptionManager.swift
-//  Test App
+//  Ekonix
 //
 //  Created by Claude Code
 //

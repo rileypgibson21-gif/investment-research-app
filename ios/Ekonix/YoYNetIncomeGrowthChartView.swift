@@ -1,49 +1,49 @@
 //
-//  YoYGrowthChartView.swift
-//  Test App
+//  YoYNetIncomeGrowthChartView.swift
+//  Ekonix
 //
 //  Extracted from ContentView.swift for faster compilation
 //
 
 import SwiftUI
 
-struct YoYGrowthChartView: View {
+struct YoYNetIncomeGrowthChartView: View {
     let symbol: String
     let apiService: StockAPIService
-    var onDataLoaded: (([RevenueDataPoint]) -> Void)? = nil
+    var onDataLoaded: (([NetIncomeDataPoint]) -> Void)? = nil
 
-    @State private var revenueData: [RevenueDataPoint] = []
+    @State private var netIncomeData: [NetIncomeDataPoint] = []
     @State private var isLoading = false
-    @State private var selectedBar: String?  // Changed from UUID? to String?
+    @State private var selectedBar: String?
 
     struct GrowthDataPoint: Identifiable {
         let period: String
         let growthPercent: Double
-        let currentRevenue: Double
-        let priorRevenue: Double
+        let currentNetIncome: Double
+        let priorNetIncome: Double
         let shouldRender: Bool
-        var id: String { period }  // Use period string as stable id
+        var id: String { period }
     }
 
     var growthData: [GrowthDataPoint] {
-        guard revenueData.count >= 5 else { return [] }
+        guard netIncomeData.count >= 5 else { return [] }
 
         var growth: [GrowthDataPoint] = []
-        let sortedData = revenueData.sorted { $0.period < $1.period }
+        let sortedData = netIncomeData.sorted { $0.period < $1.period }
 
         // Calculate YoY growth (comparing to 4 quarters ago)
         for i in 4..<sortedData.count {
             let current = sortedData[i]
             let prior = sortedData[i - 4]
 
-            let shouldRender = prior.revenue > 0
-            let growthPercent = shouldRender ? ((current.revenue - prior.revenue) / prior.revenue) * 100 : 0
+            let shouldRender = prior.netIncome > 0
+            let growthPercent = shouldRender ? ((current.netIncome - prior.netIncome) / prior.netIncome) * 100 : 0
 
             growth.append(GrowthDataPoint(
                 period: current.period,
                 growthPercent: growthPercent,
-                currentRevenue: current.revenue,
-                priorRevenue: prior.revenue,
+                currentNetIncome: current.netIncome,
+                priorNetIncome: prior.netIncome,
                 shouldRender: shouldRender
             ))
         }
@@ -91,13 +91,33 @@ struct YoYGrowthChartView: View {
         return ChartConstants.chartHeight / 2 - (ChartConstants.chartHeight * fractionFromBottom)
     }
 
-    @ViewBuilder
-    private var chartContentView: some View {
-        ScrollView {
+    var body: some View {
+        ZStack {
+            if isLoading {
+                VStack {
+                    Spacer()
+                    ProgressView()
+                    Spacer()
+                }
+            } else if displayData.isEmpty {
+                VStack(spacing: 20) {
+                    Spacer()
+                    Image(systemName: "chart.bar.xaxis")
+                        .font(.system(size: 60))
+                        .foregroundStyle(.gray)
+                    Text("Insufficient data for YoY growth")
+                        .foregroundStyle(.secondary)
+                    Text("Need at least 5 TTM periods of data")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                    Spacer()
+                }
+            } else {
+                ScrollView {
                     VStack(spacing: 20) {
                         // Chart with title
                         VStack(alignment: .leading, spacing: 16) {
-                            Text("TTM YoY Revenue Growth")
+                            Text("TTM YoY Net Income Growth")
                                 .font(.headline)
                                 .frame(maxWidth: .infinity, alignment: .center)
 
@@ -174,20 +194,21 @@ struct YoYGrowthChartView: View {
                                                                               (selectedBar == point.id ? Color.red.opacity(0.8) : Color.red))
                                                                         .frame(width: dynamicBarWidth, height: heightValue)
                                                                         .offset(y: -offsetValue)
-                                                                        .onTapGesture {
-                                                                            withAnimation(.easeInOut(duration: 0.2)) {
-                                                                                if selectedBar == point.id {
-                                                                                    selectedBar = nil
-                                                                                } else {
-                                                                                    selectedBar = point.id
-                                                                                }
-                                                                            }
-                                                                        }
                                                                 }
                                                             }
                                                         }
                                                         .frame(width: dynamicBarWidth, height: 290, alignment: .bottom)
                                                         .id(point.id)
+                                                        .contentShape(Rectangle())
+                                                        .onTapGesture {
+                                                            withAnimation(.easeInOut(duration: 0.2)) {
+                                                                if selectedBar == point.id {
+                                                                    selectedBar = nil
+                                                                } else {
+                                                                    selectedBar = point.id
+                                                                }
+                                                            }
+                                                        }
                                                     }
                                                 }
                                                 .padding(.horizontal, 4)
@@ -237,54 +258,30 @@ struct YoYGrowthChartView: View {
                         .padding()
                     }
                 }
-    }
-
-    var body: some View {
-        ZStack {
-            if isLoading {
-                VStack {
-                    Spacer()
-                    ProgressView()
-                    Spacer()
-                }
-            } else if displayData.isEmpty {
-                VStack(spacing: 20) {
-                    Spacer()
-                    Image(systemName: "chart.bar.xaxis")
-                        .font(.system(size: 60))
-                        .foregroundStyle(.gray)
-                    Text("Insufficient data for YoY growth")
-                        .foregroundStyle(.secondary)
-                    Text("Need at least 5 TTM periods of data")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                    Spacer()
-                }
-            } else {
-                chartContentView
             }
         }
         .onAppear {
-            if revenueData.isEmpty {
-                loadRevenue()
+            if netIncomeData.isEmpty {
+                loadNetIncome()
             }
         }
     }
 
-    private func loadRevenue() {
+    private func loadNetIncome() {
         isLoading = true
 
         Task {
             do {
-                let data = try await apiService.fetchTTMRevenue(symbol: symbol)
+                let data = try await apiService.fetchTTMNetIncome(symbol: symbol)
                 await MainActor.run {
-                    revenueData = data
+                    netIncomeData = data
                     onDataLoaded?(data)
                     isLoading = false
                 }
             } catch {
                 await MainActor.run {
-                    revenueData = []
+                    netIncomeData = []
+                    onDataLoaded?([])
                     isLoading = false
                 }
             }

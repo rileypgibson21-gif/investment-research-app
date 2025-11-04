@@ -23,14 +23,14 @@ struct FinancialDataPoint: Identifiable {
 
 enum MetricType {
     case revenue
-    case earnings
+    case netIncome
     case custom(name: String)
 
     var displayName: String {
         switch self {
         case .revenue:
             return "Revenue"
-        case .earnings:
+        case .netIncome:
             return "Net Income"
         case .custom(let name):
             return name
@@ -41,7 +41,7 @@ enum MetricType {
         switch self {
         case .revenue:
             return false  // Revenue cannot be negative
-        case .earnings:
+        case .netIncome:
             return true   // Earnings can be negative (losses)
         case .custom:
             return true   // Custom metrics may be negative
@@ -221,8 +221,8 @@ extension FinancialChartView {
         )
     }
 
-    /// Initialize with earnings data (convenience)
-    static func earnings(
+    /// Initialize with net income data (convenience)
+    static func netIncome(
         quarterly: [FinancialDataPoint],
         ttm: [FinancialDataPoint],
         ticker: String
@@ -230,7 +230,7 @@ extension FinancialChartView {
         FinancialChartView(
             quarterlyData: quarterly,
             ttmData: ttm,
-            metricType: .earnings,
+            metricType: .netIncome,
             ticker: ticker
         )
     }
@@ -255,8 +255,8 @@ extension FinancialDataPoint {
         self.date = date
     }
 
-    /// Create from EarningsDataPoint (from your API)
-    init(from earningsDataPoint: EarningsDataPoint) {
+    /// Create from NetIncomeDataPoint (from your API)
+    init(from earningsDataPoint: NetIncomeDataPoint) {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
         let date = formatter.date(from: earningsDataPoint.period) ?? Date()
@@ -267,7 +267,7 @@ extension FinancialDataPoint {
         let periodLabel = "Q\(quarter) \(year)"
 
         self.period = periodLabel
-        self.value = earningsDataPoint.earnings
+        self.value = earningsDataPoint.netIncome
         self.date = date
     }
 
@@ -276,8 +276,8 @@ extension FinancialDataPoint {
         return data.map { FinancialDataPoint(from: $0) }
     }
 
-    /// Create array from EarningsDataPoint array
-    static func fromEarningsData(_ data: [EarningsDataPoint]) -> [FinancialDataPoint] {
+    /// Create array from NetIncomeDataPoint array
+    static func fromNetIncomeData(_ data: [NetIncomeDataPoint]) -> [FinancialDataPoint] {
         return data.map { FinancialDataPoint(from: $0) }
     }
 }
@@ -307,7 +307,7 @@ extension FinancialDataPoint {
 }
 
 #Preview("Earnings Chart") {
-    FinancialChartView.earnings(
+    FinancialChartView.netIncome(
         quarterly: [
             FinancialDataPoint(period: "Q1 2023", value: 24_160_000_000, date: Date()),
             FinancialDataPoint(period: "Q2 2023", value: 19_881_000_000, date: Date()),
@@ -329,7 +329,7 @@ extension FinancialDataPoint {
 }
 
 #Preview("Losses Chart") {
-    FinancialChartView.earnings(
+    FinancialChartView.netIncome(
         quarterly: [
             FinancialDataPoint(period: "Q1 2023", value: -500_000_000, date: Date()),
             FinancialDataPoint(period: "Q2 2023", value: -1_200_000_000, date: Date()),

@@ -1,6 +1,6 @@
 //
 //  ResearchItem.swift
-//  Test App
+//  Ekonix
 //
 //  Created by Riley Gibson on 10/19/25.
 //

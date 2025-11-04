@@ -21,16 +21,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 # Build the iOS app
 cd ios
-xcodebuild -project "Test App.xcodeproj" -scheme "Test App" -sdk iphonesimulator build
+xcodebuild -project "Ekonix.xcodeproj" -scheme "Ekonix" -sdk iphonesimulator build
 
 # Clean build
-xcodebuild -project "Test App.xcodeproj" -scheme "Test App" -sdk iphonesimulator clean build
+xcodebuild -project "Ekonix.xcodeproj" -scheme "Ekonix" -sdk iphonesimulator clean build
 
 # Run UI tests (currently minimal - only launch test exists)
-xcodebuild -project "Test App.xcodeproj" -scheme "Test App" -sdk iphonesimulator test
+xcodebuild -project "Ekonix.xcodeproj" -scheme "Ekonix" -sdk iphonesimulator test
 ```
 
-**Note:** Most development happens in Xcode IDE. Open `ios/Test App.xcodeproj` directly.
+**Note:** Most development happens in Xcode IDE. Open `ios/Ekonix.xcodeproj` directly.
 
 ### Backend (Cloudflare Worker)
 
@@ -158,7 +158,7 @@ for (let i = 3; i < data.length; i++) {
 
 ## Shared Chart Utilities
 
-**Location:** `ios/Test App/ChartUtilities.swift`
+**Location:** `ios/Ekonix/ChartUtilities.swift`
 
 **Purpose:** Centralized formatting and constants to ensure consistency across all 4 chart views.
 
@@ -228,9 +228,9 @@ struct TickerSuggestion: Identifiable, Codable {
 
 ## Test Folders
 
-**`ios/Test AppTests/`** - Empty folder for unit tests (none implemented yet)
+**`ios/EkonixTests/`** - Empty folder for unit tests (none implemented yet)
 
-**`ios/Test AppUITests/`** - Contains one basic UI test:
+**`ios/EkonixUITests/`** - Contains one basic UI test:
 - `Test_AppUITestsLaunchTests.swift` - Takes screenshot on launch
 
 These are Xcode-generated test targets. Currently minimal but kept for future test expansion.
@@ -241,7 +241,7 @@ These are Xcode-generated test targets. Currently minimal but kept for future te
 
 ### Adding a New Chart
 
-1. Create new file: `ios/Test App/NewChartView.swift`
+1. Create new file: `ios/Ekonix/NewChartView.swift`
 2. Follow existing chart pattern (see EarningsChartView.swift)
 3. Use `ChartUtilities` for all formatting
 4. Import constants: `ChartConstants.chartHeight`, etc.
@@ -293,11 +293,11 @@ These are Xcode-generated test targets. Currently minimal but kept for future te
 - `backend/src/index.js` (590 lines) - All API logic, SEC integration, TTM calculation
 
 **iOS Core:**
-- `ios/Test App/ContentView.swift` (2300+ lines) - Main view, StockAPIService, data fetching
-- `ios/Test App/ChartUtilities.swift` (220 lines) - Shared formatting, constants
+- `ios/Ekonix/ContentView.swift` (2300+ lines) - Main view, StockAPIService, data fetching
+- `ios/Ekonix/ChartUtilities.swift` (220 lines) - Shared formatting, constants
 
 **iOS Charts (all ~300 lines each):**
-- `ios/Test App/EarningsChartView.swift`
-- `ios/Test App/TTMEarningsChartView.swift`
-- `ios/Test App/YoYGrowthChartView.swift`
-- `ios/Test App/YoYEarningsGrowthChartView.swift`
+- `ios/Ekonix/EarningsChartView.swift`
+- `ios/Ekonix/TTMEarningsChartView.swift`
+- `ios/Ekonix/YoYGrowthChartView.swift`
+- `ios/Ekonix/YoYEarningsGrowthChartView.swift`

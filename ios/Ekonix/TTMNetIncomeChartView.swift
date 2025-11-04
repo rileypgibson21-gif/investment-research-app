@@ -1,46 +1,46 @@
 //
-//  TTMEarningsChartView.swift
-//  Test App
+//  TTMNetIncomeChartView.swift
+//  Ekonix
 //
 //  Extracted from ContentView.swift for faster compilation
 //
 
 import SwiftUI
 
-struct TTMEarningsChartView: View {
+struct TTMNetIncomeChartView: View {
     let symbol: String
     let apiService: StockAPIService
-    var onDataLoaded: (([EarningsDataPoint]) -> Void)? = nil
+    var onDataLoaded: (([NetIncomeDataPoint]) -> Void)? = nil
 
-    @State private var earningsData: [EarningsDataPoint] = []
+    @State private var netIncomeData: [NetIncomeDataPoint] = []
     @State private var isLoading = false
     @State private var selectedBar: UUID?
     @State private var errorMessage: String?
 
-    var displayData: [EarningsDataPoint] {
+    var displayData: [NetIncomeDataPoint] {
         // Sort by period (oldest first on left, newest on right) and take latest 37 TTM periods
-        let sorted = earningsData.sorted { $0.period < $1.period }
+        let sorted = netIncomeData.sorted { $0.period < $1.period }
         return Array(sorted.suffix(ChartConstants.ttmDataLimit))
     }
 
-    var earningsRange: (min: Double, max: Double) {
-        let values = displayData.map { $0.earnings }
+    var netIncomeRange: (min: Double, max: Double) {
+        let values = displayData.map { $0.netIncome }
         return ChartUtilities.calculateAdaptiveRange(values: values)
     }
 
     private var valueScale: ChartUtilities.ValueScale {
-        let values = displayData.map { $0.earnings }
+        let values = displayData.map { $0.netIncome }
         return ChartUtilities.detectValueScale(values: values)
     }
 
     private func getYAxisLabels() -> [Double] {
-        let range = earningsRange
+        let range = netIncomeRange
         return ChartUtilities.generateYAxisLabels(minValue: range.min, maxValue: range.max)
     }
 
     /// Calculate the Y position where zero line sits (as fraction of chart height from bottom)
     private var zeroLinePosition: CGFloat {
-        let range = earningsRange
+        let range = netIncomeRange
         let totalRange = range.max - range.min
         guard totalRange > 0 else { return 0 }
         // Zero position as fraction from bottom: -min / totalRange
@@ -67,11 +67,11 @@ struct TTMEarningsChartView: View {
                             .padding(.horizontal)
                     }
                     Button("Retry") {
-                        loadEarnings()
+                        loadNetIncome()
                     }
                     Spacer()
                 }
-            } else if earningsData.isEmpty {
+            } else if netIncomeData.isEmpty {
                 VStack(spacing: 20) {
                     Spacer()
                     Image(systemName: "chart.bar.xaxis")
@@ -80,7 +80,7 @@ struct TTMEarningsChartView: View {
                     Text("No TTM net income data available")
                         .foregroundStyle(.secondary)
                     Button("Retry") {
-                        loadEarnings()
+                        loadNetIncome()
                     }
                     Spacer()
                 }
@@ -118,8 +118,8 @@ struct TTMEarningsChartView: View {
                                             // Data bars (drawn first, behind gridlines)
                                             HStack(alignment: .bottom, spacing: ChartConstants.barSpacing) {
                                                 ForEach(Array(displayData.enumerated()), id: \.element.id) { index, point in
-                                                    let heightValue = barHeight(for: point.earnings, in: ChartConstants.chartHeight)
-                                                    let offsetValue = barOffset(for: point.earnings, barHeight: heightValue, in: ChartConstants.chartHeight)
+                                                    let heightValue = barHeight(for: point.netIncome, in: ChartConstants.chartHeight)
+                                                    let offsetValue = barOffset(for: point.netIncome, barHeight: heightValue, in: ChartConstants.chartHeight)
 
                                                     VStack(spacing: 4) {
                                                         if selectedBar == point.id {
@@ -127,7 +127,7 @@ struct TTMEarningsChartView: View {
                                                                 Text(formatDate(point.period))
                                                                     .font(.caption2)
                                                                     .fontWeight(.bold)
-                                                                Text(formatDetailedValue(point.earnings))
+                                                                Text(formatDetailedValue(point.netIncome))
                                                                     .font(.caption2)
                                                                     .fontWeight(.semibold)
                                                                 #if DEBUG
@@ -163,19 +163,20 @@ struct TTMEarningsChartView: View {
                                                                 .fill(selectedBar == point.id ? Color.blue.opacity(0.8) : Color.blue)
                                                                 .frame(width: dynamicBarWidth, height: heightValue)
                                                                 .offset(y: -offsetValue)
-                                                                .onTapGesture {
-                                                                    withAnimation(.easeInOut(duration: 0.2)) {
-                                                                        if selectedBar == point.id {
-                                                                            selectedBar = nil
-                                                                        } else {
-                                                                            selectedBar = point.id
-                                                                        }
-                                                                    }
-                                                                }
                                                         }
                                                     }
                                                     .frame(width: dynamicBarWidth, height: 290, alignment: .bottom)
                                                     .id(point.id)
+                                                    .contentShape(Rectangle())
+                                                    .onTapGesture {
+                                                        withAnimation(.easeInOut(duration: 0.2)) {
+                                                            if selectedBar == point.id {
+                                                                selectedBar = nil
+                                                            } else {
+                                                                selectedBar = point.id
+                                                            }
+                                                        }
+                                                    }
                                                 }
                                             }
                                             .padding(.horizontal, 4)
@@ -192,7 +193,7 @@ struct TTMEarningsChartView: View {
                                             .allowsHitTesting(false)
 
                                             // Highlighted zero line (drawn last, most prominent)
-                                            if earningsRange.min < 0 && earningsRange.max > 0 {
+                                            if netIncomeRange.min < 0 && netIncomeRange.max > 0 {
                                                 Rectangle()
                                                     .fill(Color.gray.opacity(0.5))
                                                     .frame(height: 1)
@@ -230,28 +231,28 @@ struct TTMEarningsChartView: View {
             }
         }
         .onAppear {
-            if earningsData.isEmpty {
-                loadEarnings()
+            if netIncomeData.isEmpty {
+                loadNetIncome()
             }
         }
     }
 
-    private func loadEarnings() {
+    private func loadNetIncome() {
         isLoading = true
         errorMessage = nil
 
         Task {
             do {
-                let data = try await apiService.fetchTTMEarnings(symbol: symbol)
+                let data = try await apiService.fetchTTMNetIncome(symbol: symbol)
                 await MainActor.run {
-                    earningsData = data
+                    netIncomeData = data
                     onDataLoaded?(data)
                     isLoading = false
                 }
             } catch {
                 await MainActor.run {
-                    earningsData = []
-                    errorMessage = "Failed to load TTM earnings data"
+                    netIncomeData = []
+                    errorMessage = "Failed to load TTM net income data"
                     onDataLoaded?([])
                     isLoading = false
                 }
@@ -260,7 +261,7 @@ struct TTMEarningsChartView: View {
     }
 
     private func barHeight(for value: Double, in maxHeight: CGFloat) -> CGFloat {
-        let range = earningsRange
+        let range = netIncomeRange
         let totalRange = range.max - range.min
         guard totalRange > 0 else { return 0 }
 
@@ -302,7 +303,7 @@ struct TTMEarningsChartView: View {
     /// Uses value-based positioning to ensure proportional spacing for asymmetric ranges
     private func yOffsetForLabel(at index: Int) -> CGFloat {
         let labels = getYAxisLabels()
-        let range = earningsRange
+        let range = netIncomeRange
         let totalRange = range.max - range.min
         guard totalRange > 0 else { return 0 }
 

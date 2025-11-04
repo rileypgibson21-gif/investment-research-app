@@ -12,37 +12,50 @@
 			containerPortal = 5E73FC012EA450CD0036FFC0 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = 5E73FC082EA450CD0036FFC0;
-			remoteInfo = "Test App";
+			remoteInfo = Ekonix;
 		};
 		5E73FC252EA450CE0036FFC0 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 5E73FC012EA450CD0036FFC0 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = 5E73FC082EA450CD0036FFC0;
-			remoteInfo = "Test App";
+			remoteInfo = Ekonix;
 		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		5E73FC092EA450CD0036FFC0 /* Test App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Test App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
-		5E73FC1A2EA450CE0036FFC0 /* Test AppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Test AppTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
-		5E73FC242EA450CE0036FFC0 /* Test AppUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Test AppUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		5E73FC092EA450CD0036FFC0 /* Ekonix.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Ekonix.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		5E73FC1A2EA450CE0036FFC0 /* EkonixTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = EkonixTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		5E73FC242EA450CE0036FFC0 /* EkonixUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = EkonixUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		5E73FC2C2EA450CE0036FFC0 /* Exceptions for "Ekonix" folder in "Ekonix" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 5E73FC082EA450CD0036FFC0 /* Ekonix */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		5E73FC0B2EA450CD0036FFC0 /* Test App */ = {
+		5E73FC0B2EA450CD0036FFC0 /* Ekonix */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = "Test App";
+			exceptions = (
+				5E73FC2C2EA450CE0036FFC0 /* Exceptions for "Ekonix" folder in "Ekonix" target */,
+			);
+			path = Ekonix;
 			sourceTree = "<group>";
 		};
-		5E73FC1D2EA450CE0036FFC0 /* Test AppTests */ = {
+		5E73FC1D2EA450CE0036FFC0 /* EkonixTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = "Test AppTests";
+			path = EkonixTests;
 			sourceTree = "<group>";
 		};
-		5E73FC272EA450CE0036FFC0 /* Test AppUITests */ = {
+		5E73FC272EA450CE0036FFC0 /* EkonixUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = "Test AppUITests";
+			path = EkonixUITests;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -75,9 +88,9 @@
 		5E73FC002EA450CD0036FFC0 = {
 			isa = PBXGroup;
 			children = (
-				5E73FC0B2EA450CD0036FFC0 /* Test App */,
-				5E73FC1D2EA450CE0036FFC0 /* Test AppTests */,
-				5E73FC272EA450CE0036FFC0 /* Test AppUITests */,
+				5E73FC0B2EA450CD0036FFC0 /* Ekonix */,
+				5E73FC1D2EA450CE0036FFC0 /* EkonixTests */,
+				5E73FC272EA450CE0036FFC0 /* EkonixUITests */,
 				5E73FC0A2EA450CD0036FFC0 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -85,9 +98,9 @@
 		5E73FC0A2EA450CD0036FFC0 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				5E73FC092EA450CD0036FFC0 /* Test App.app */,
-				5E73FC1A2EA450CE0036FFC0 /* Test AppTests.xctest */,
-				5E73FC242EA450CE0036FFC0 /* Test AppUITests.xctest */,
+				5E73FC092EA450CD0036FFC0 /* Ekonix.app */,
+				5E73FC1A2EA450CE0036FFC0 /* EkonixTests.xctest */,
+				5E73FC242EA450CE0036FFC0 /* EkonixUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -95,9 +108,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		5E73FC082EA450CD0036FFC0 /* Test App */ = {
+		5E73FC082EA450CD0036FFC0 /* Ekonix */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 5E73FC2D2EA450CE0036FFC0 /* Build configuration list for PBXNativeTarget "Test App" */;
+			buildConfigurationList = 5E73FC2D2EA450CE0036FFC0 /* Build configuration list for PBXNativeTarget "Ekonix" */;
 			buildPhases = (
 				5E73FC052EA450CD0036FFC0 /* Sources */,
 				5E73FC062EA450CD0036FFC0 /* Frameworks */,
@@ -108,18 +121,18 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				5E73FC0B2EA450CD0036FFC0 /* Test App */,
+				5E73FC0B2EA450CD0036FFC0 /* Ekonix */,
 			);
-			name = "Test App";
+			name = Ekonix;
 			packageProductDependencies = (
 			);
-			productName = "Test App";
-			productReference = 5E73FC092EA450CD0036FFC0 /* Test App.app */;
+			productName = Ekonix;
+			productReference = 5E73FC092EA450CD0036FFC0 /* Ekonix.app */;
 			productType = "com.apple.product-type.application";
 		};
-		5E73FC192EA450CE0036FFC0 /* Test AppTests */ = {
+		5E73FC192EA450CE0036FFC0 /* EkonixTests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 5E73FC322EA450CE0036FFC0 /* Build configuration list for PBXNativeTarget "Test AppTests" */;
+			buildConfigurationList = 5E73FC322EA450CE0036FFC0 /* Build configuration list for PBXNativeTarget "EkonixTests" */;
 			buildPhases = (
 				5E73FC162EA450CE0036FFC0 /* Sources */,
 				5E73FC172EA450CE0036FFC0 /* Frameworks */,
@@ -131,18 +144,18 @@
 				5E73FC1C2EA450CE0036FFC0 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				5E73FC1D2EA450CE0036FFC0 /* Test AppTests */,
+				5E73FC1D2EA450CE0036FFC0 /* EkonixTests */,
 			);
-			name = "Test AppTests";
+			name = EkonixTests;
 			packageProductDependencies = (
 			);
-			productName = "Test AppTests";
-			productReference = 5E73FC1A2EA450CE0036FFC0 /* Test AppTests.xctest */;
+			productName = EkonixTests;
+			productReference = 5E73FC1A2EA450CE0036FFC0 /* EkonixTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
-		5E73FC232EA450CE0036FFC0 /* Test AppUITests */ = {
+		5E73FC232EA450CE0036FFC0 /* EkonixUITests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 5E73FC352EA450CE0036FFC0 /* Build configuration list for PBXNativeTarget "Test AppUITests" */;
+			buildConfigurationList = 5E73FC352EA450CE0036FFC0 /* Build configuration list for PBXNativeTarget "EkonixUITests" */;
 			buildPhases = (
 				5E73FC202EA450CE0036FFC0 /* Sources */,
 				5E73FC212EA450CE0036FFC0 /* Frameworks */,
@@ -154,13 +167,13 @@
 				5E73FC262EA450CE0036FFC0 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				5E73FC272EA450CE0036FFC0 /* Test AppUITests */,
+				5E73FC272EA450CE0036FFC0 /* EkonixUITests */,
 			);
-			name = "Test AppUITests";
+			name = EkonixUITests;
 			packageProductDependencies = (
 			);
-			productName = "Test AppUITests";
-			productReference = 5E73FC242EA450CE0036FFC0 /* Test AppUITests.xctest */;
+			productName = EkonixUITests;
+			productReference = 5E73FC242EA450CE0036FFC0 /* EkonixUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
 /* End PBXNativeTarget section */
@@ -186,7 +199,7 @@
 					};
 				};
 			};
-			buildConfigurationList = 5E73FC042EA450CD0036FFC0 /* Build configuration list for PBXProject "Test App" */;
+			buildConfigurationList = 5E73FC042EA450CD0036FFC0 /* Build configuration list for PBXProject "Ekonix" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -200,9 +213,9 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				5E73FC082EA450CD0036FFC0 /* Test App */,
-				5E73FC192EA450CE0036FFC0 /* Test AppTests */,
-				5E73FC232EA450CE0036FFC0 /* Test AppUITests */,
+				5E73FC082EA450CD0036FFC0 /* Ekonix */,
+				5E73FC192EA450CE0036FFC0 /* EkonixTests */,
+				5E73FC232EA450CE0036FFC0 /* EkonixUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -258,12 +271,12 @@
 /* Begin PBXTargetDependency section */
 		5E73FC1C2EA450CE0036FFC0 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 5E73FC082EA450CD0036FFC0 /* Test App */;
+			target = 5E73FC082EA450CD0036FFC0 /* Ekonix */;
 			targetProxy = 5E73FC1B2EA450CE0036FFC0 /* PBXContainerItemProxy */;
 		};
 		5E73FC262EA450CE0036FFC0 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 5E73FC082EA450CD0036FFC0 /* Test App */;
+			target = 5E73FC082EA450CD0036FFC0 /* Ekonix */;
 			targetProxy = 5E73FC252EA450CE0036FFC0 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
@@ -274,13 +287,13 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = "Test App/Test_App.entitlements";
+				CODE_SIGN_ENTITLEMENTS = Ekonix/Ekonix.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 57W67ZDYHC;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = "Test App/Info.plist";
+				INFOPLIST_FILE = Ekonix/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -291,7 +304,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "RPG-Team.Test-App";
+				PRODUCT_BUNDLE_IDENTIFIER = "RPG-Team.Ekonix";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -308,13 +321,13 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = "Test App/Test_App.entitlements";
+				CODE_SIGN_ENTITLEMENTS = Ekonix/Ekonix.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 57W67ZDYHC;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = "Test App/Info.plist";
+				INFOPLIST_FILE = Ekonix/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -325,7 +338,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "RPG-Team.Test-App";
+				PRODUCT_BUNDLE_IDENTIFIER = "RPG-Team.Ekonix";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -468,7 +481,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "RPG-Team.Test-AppTests";
+				PRODUCT_BUNDLE_IDENTIFIER = "RPG-Team.EkonixTests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -476,7 +489,7 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Test App.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Test App";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Ekonix.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Ekonix";
 			};
 			name = Debug;
 		};
@@ -490,7 +503,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "RPG-Team.Test-AppTests";
+				PRODUCT_BUNDLE_IDENTIFIER = "RPG-Team.EkonixTests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -498,7 +511,7 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Test App.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Test App";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Ekonix.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Ekonix";
 			};
 			name = Release;
 		};
@@ -510,7 +523,7 @@
 				DEVELOPMENT_TEAM = 57W67ZDYHC;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "RPG-Team.Test-AppUITests";
+				PRODUCT_BUNDLE_IDENTIFIER = "RPG-Team.EkonixUITests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -518,7 +531,7 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_TARGET_NAME = "Test App";
+				TEST_TARGET_NAME = Ekonix;
 			};
 			name = Debug;
 		};
@@ -530,7 +543,7 @@
 				DEVELOPMENT_TEAM = 57W67ZDYHC;
 				GENERATE_INFOPLIST_FILE = YES;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "RPG-Team.Test-AppUITests";
+				PRODUCT_BUNDLE_IDENTIFIER = "RPG-Team.EkonixUITests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -538,14 +551,14 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_TARGET_NAME = "Test App";
+				TEST_TARGET_NAME = Ekonix;
 			};
 			name = Release;
 		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		5E73FC042EA450CD0036FFC0 /* Build configuration list for PBXProject "Test App" */ = {
+		5E73FC042EA450CD0036FFC0 /* Build configuration list for PBXProject "Ekonix" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				5E73FC302EA450CE0036FFC0 /* Debug */,
@@ -554,7 +567,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		5E73FC2D2EA450CE0036FFC0 /* Build configuration list for PBXNativeTarget "Test App" */ = {
+		5E73FC2D2EA450CE0036FFC0 /* Build configuration list for PBXNativeTarget "Ekonix" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				5E73FC2E2EA450CE0036FFC0 /* Debug */,
@@ -563,7 +576,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		5E73FC322EA450CE0036FFC0 /* Build configuration list for PBXNativeTarget "Test AppTests" */ = {
+		5E73FC322EA450CE0036FFC0 /* Build configuration list for PBXNativeTarget "EkonixTests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				5E73FC332EA450CE0036FFC0 /* Debug */,
@@ -572,7 +585,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		5E73FC352EA450CE0036FFC0 /* Build configuration list for PBXNativeTarget "Test AppUITests" */ = {
+		5E73FC352EA450CE0036FFC0 /* Build configuration list for PBXNativeTarget "EkonixUITests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				5E73FC362EA450CE0036FFC0 /* Debug */,

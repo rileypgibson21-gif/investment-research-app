@@ -1,45 +1,46 @@
 //
-//  EarningsChartView.swift
-//  Test App
+//  TTMOperatingIncomeChartView.swift
+//  Ekonix
 //
-//  Extracted from ContentView.swift for faster compilation
+//  Created for operating income TTM chart
 //
 
 import SwiftUI
 
-struct EarningsChartView: View {
+struct TTMOperatingIncomeChartView: View {
     let symbol: String
     let apiService: StockAPIService
-    var onDataLoaded: (([EarningsDataPoint]) -> Void)? = nil
+    var onDataLoaded: (([OperatingIncomeDataPoint]) -> Void)? = nil
 
-    @State private var earningsData: [EarningsDataPoint] = []
+    @State private var operatingIncomeData: [OperatingIncomeDataPoint] = []
     @State private var isLoading = false
     @State private var selectedBar: UUID?
+    @State private var errorMessage: String?
 
-    var displayData: [EarningsDataPoint] {
-        // Sort by period (oldest first on left, newest on right) and take latest 40 quarters
-        let sorted = earningsData.sorted { $0.period < $1.period }
-        return Array(sorted.suffix(ChartConstants.quarterlyDataLimit))
+    var displayData: [OperatingIncomeDataPoint] {
+        // Sort by period (oldest first on left, newest on right) and take latest 37 TTM periods
+        let sorted = operatingIncomeData.sorted { $0.period < $1.period }
+        return Array(sorted.suffix(ChartConstants.ttmDataLimit))
     }
 
-    var earningsRange: (min: Double, max: Double) {
-        let values = displayData.map { $0.earnings }
+    var operatingIncomeRange: (min: Double, max: Double) {
+        let values = displayData.map { $0.operatingIncome }
         return ChartUtilities.calculateAdaptiveRange(values: values)
     }
 
     private var valueScale: ChartUtilities.ValueScale {
-        let values = displayData.map { $0.earnings }
+        let values = displayData.map { $0.operatingIncome }
         return ChartUtilities.detectValueScale(values: values)
     }
 
     private func getYAxisLabels() -> [Double] {
-        let range = earningsRange
+        let range = operatingIncomeRange
         return ChartUtilities.generateYAxisLabels(minValue: range.min, maxValue: range.max)
     }
 
     /// Calculate the Y position where zero line sits (as fraction of chart height from bottom)
     private var zeroLinePosition: CGFloat {
-        let range = earningsRange
+        let range = operatingIncomeRange
         let totalRange = range.max - range.min
         guard totalRange > 0 else { return 0 }
         // Zero position as fraction from bottom: -min / totalRange
@@ -54,16 +55,32 @@ struct EarningsChartView: View {
                     ProgressView()
                     Spacer()
                 }
-            } else if earningsData.isEmpty {
+            } else if let error = errorMessage {
+                VStack(spacing: 20) {
+                    Spacer()
+                    Image(systemName: "exclamationmark.triangle")
+                        .font(.system(size: 60))
+                        .foregroundStyle(.red)
+                    if !error.isEmpty {
+                        Text(error)
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal)
+                    }
+                    Button("Retry") {
+                        loadOperatingIncome()
+                    }
+                    Spacer()
+                }
+            } else if operatingIncomeData.isEmpty {
                 VStack(spacing: 20) {
                     Spacer()
                     Image(systemName: "chart.bar.xaxis")
                         .font(.system(size: 60))
                         .foregroundStyle(.gray)
-                    Text("No net income data available")
+                    Text("No TTM operating income data available")
                         .foregroundStyle(.secondary)
                     Button("Retry") {
-                        loadEarnings()
+                        loadOperatingIncome()
                     }
                     Spacer()
                 }
@@ -72,7 +89,7 @@ struct EarningsChartView: View {
                     VStack(spacing: 20) {
                         // Chart with title
                         VStack(alignment: .leading, spacing: 16) {
-                            Text("Quarterly Net Income")
+                            Text("Trailing Twelve Months Operating Income")
                                 .font(.headline)
                                 .frame(maxWidth: .infinity, alignment: .center)
 
@@ -101,8 +118,8 @@ struct EarningsChartView: View {
                                             // Data bars (drawn first, behind gridlines)
                                             HStack(alignment: .bottom, spacing: ChartConstants.barSpacing) {
                                                 ForEach(Array(displayData.enumerated()), id: \.element.id) { index, point in
-                                                    let heightValue = barHeight(for: point.earnings, in: ChartConstants.chartHeight)
-                                                    let offsetValue = barOffset(for: point.earnings, barHeight: heightValue, in: ChartConstants.chartHeight)
+                                                    let heightValue = barHeight(for: point.operatingIncome, in: ChartConstants.chartHeight)
+                                                    let offsetValue = barOffset(for: point.operatingIncome, barHeight: heightValue, in: ChartConstants.chartHeight)
 
                                                     VStack(spacing: 4) {
                                                         if selectedBar == point.id {
@@ -110,7 +127,7 @@ struct EarningsChartView: View {
                                                                 Text(formatDate(point.period))
                                                                     .font(.caption2)
                                                                     .fontWeight(.bold)
-                                                                Text(formatDetailedValue(point.earnings))
+                                                                Text(formatDetailedValue(point.operatingIncome))
                                                                     .font(.caption2)
                                                                     .fontWeight(.semibold)
                                                                 #if DEBUG
@@ -146,19 +163,20 @@ struct EarningsChartView: View {
                                                                 .fill(selectedBar == point.id ? Color.blue.opacity(0.8) : Color.blue)
                                                                 .frame(width: dynamicBarWidth, height: heightValue)
                                                                 .offset(y: -offsetValue)
-                                                                .onTapGesture {
-                                                                    withAnimation(.easeInOut(duration: 0.2)) {
-                                                                        if selectedBar == point.id {
-                                                                            selectedBar = nil
-                                                                        } else {
-                                                                            selectedBar = point.id
-                                                                        }
-                                                                    }
-                                                                }
                                                         }
                                                     }
                                                     .frame(width: dynamicBarWidth, height: 290, alignment: .bottom)
                                                     .id(point.id)
+                                                    .contentShape(Rectangle())
+                                                    .onTapGesture {
+                                                        withAnimation(.easeInOut(duration: 0.2)) {
+                                                            if selectedBar == point.id {
+                                                                selectedBar = nil
+                                                            } else {
+                                                                selectedBar = point.id
+                                                            }
+                                                        }
+                                                    }
                                                 }
                                             }
                                             .padding(.horizontal, 4)
@@ -175,7 +193,7 @@ struct EarningsChartView: View {
                                             .allowsHitTesting(false)
 
                                             // Highlighted zero line (drawn last, most prominent)
-                                            if earningsRange.min < 0 && earningsRange.max > 0 {
+                                            if operatingIncomeRange.min < 0 && operatingIncomeRange.max > 0 {
                                                 Rectangle()
                                                     .fill(Color.gray.opacity(0.5))
                                                     .frame(height: 1)
@@ -184,10 +202,10 @@ struct EarningsChartView: View {
                                             }
                                         }
 
-                                        // X-axis labels - show every 10th quarter for 40 bars (shows ~4-5 year labels)
+                                        // X-axis labels - show every 9th period for 37 bars (shows ~4-5 year labels)
                                         HStack(alignment: .top, spacing: ChartConstants.barSpacing) {
                                             ForEach(Array(displayData.enumerated()), id: \.element.id) { index, point in
-                                                let shouldShowLabel = index % 10 == 0 || index == displayData.count - 1
+                                                let shouldShowLabel = index % 9 == 0 || index == displayData.count - 1
 
                                                 Text(shouldShowLabel ? formatYearLabel(point.period) : "")
                                                     .font(.system(size: 9))
@@ -208,42 +226,42 @@ struct EarningsChartView: View {
                         .background(Color(uiColor: .systemBackground))
                         .cornerRadius(12)
                         .padding()
-
-                        // Remove individual data table from quarterly chart
                     }
                 }
             }
         }
         .onAppear {
-            if earningsData.isEmpty {
-                loadEarnings()
+            if operatingIncomeData.isEmpty {
+                loadOperatingIncome()
             }
         }
     }
 
-    private func loadEarnings() {
+    private func loadOperatingIncome() {
         isLoading = true
+        errorMessage = nil
 
         Task {
             do {
-                let data = try await apiService.fetchEarnings(symbol: symbol)
+                let data = try await apiService.fetchTTMOperatingIncome(symbol: symbol)
                 await MainActor.run {
-                    earningsData = data
-                    isLoading = false
+                    operatingIncomeData = data
                     onDataLoaded?(data)
+                    isLoading = false
                 }
             } catch {
                 await MainActor.run {
-                    earningsData = []
-                    isLoading = false
+                    operatingIncomeData = []
+                    errorMessage = "Failed to load TTM operating income data"
                     onDataLoaded?([])
+                    isLoading = false
                 }
             }
         }
     }
 
     private func barHeight(for value: Double, in maxHeight: CGFloat) -> CGFloat {
-        let range = earningsRange
+        let range = operatingIncomeRange
         let totalRange = range.max - range.min
         guard totalRange > 0 else { return 0 }
 
@@ -285,7 +303,7 @@ struct EarningsChartView: View {
     /// Uses value-based positioning to ensure proportional spacing for asymmetric ranges
     private func yOffsetForLabel(at index: Int) -> CGFloat {
         let labels = getYAxisLabels()
-        let range = earningsRange
+        let range = operatingIncomeRange
         let totalRange = range.max - range.min
         guard totalRange > 0 else { return 0 }
 

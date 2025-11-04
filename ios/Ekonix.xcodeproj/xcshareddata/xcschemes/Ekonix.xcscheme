@@ -16,9 +16,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "5E73FC082EA450CD0036FFC0"
-               BuildableName = "Test App.app"
-               BlueprintName = "Test App"
-               ReferencedContainer = "container:Test App.xcodeproj">
+               BuildableName = "Ekonix.app"
+               BlueprintName = "Ekonix"
+               ReferencedContainer = "container:Ekonix.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -36,9 +36,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "5E73FC192EA450CE0036FFC0"
-               BuildableName = "Test AppTests.xctest"
-               BlueprintName = "Test AppTests"
-               ReferencedContainer = "container:Test App.xcodeproj">
+               BuildableName = "EkonixTests.xctest"
+               BlueprintName = "EkonixTests"
+               ReferencedContainer = "container:Ekonix.xcodeproj">
             </BuildableReference>
          </TestableReference>
          <TestableReference
@@ -47,9 +47,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "5E73FC232EA450CE0036FFC0"
-               BuildableName = "Test AppUITests.xctest"
-               BlueprintName = "Test AppUITests"
-               ReferencedContainer = "container:Test App.xcodeproj">
+               BuildableName = "EkonixUITests.xctest"
+               BlueprintName = "EkonixUITests"
+               ReferencedContainer = "container:Ekonix.xcodeproj">
             </BuildableReference>
          </TestableReference>
       </Testables>
@@ -69,9 +69,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "5E73FC082EA450CD0036FFC0"
-            BuildableName = "Test App.app"
-            BlueprintName = "Test App"
-            ReferencedContainer = "container:Test App.xcodeproj">
+            BuildableName = "Ekonix.app"
+            BlueprintName = "Ekonix"
+            ReferencedContainer = "container:Ekonix.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </LaunchAction>
@@ -86,9 +86,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "5E73FC082EA450CD0036FFC0"
-            BuildableName = "Test App.app"
-            BlueprintName = "Test App"
-            ReferencedContainer = "container:Test App.xcodeproj">
+            BuildableName = "Ekonix.app"
+            BlueprintName = "Ekonix"
+            ReferencedContainer = "container:Ekonix.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </ProfileAction>

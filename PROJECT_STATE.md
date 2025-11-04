@@ -56,7 +56,7 @@ InvestmentResearchApp/
 │   ├── wrangler.toml          # Cloudflare config
 │   └── README.md              # Backend documentation
 │
-├── ios/Test App/              # iOS App
+├── ios/Ekonix/              # iOS App
 │   ├── ContentView.swift      # Main view + StockAPIService
 │   ├── ChartUtilities.swift   # Shared chart formatting
 │   ├── EarningsChartView.swift          # Quarterly earnings chart
@@ -350,13 +350,13 @@ private func barOffset(for value: Double, barHeight: CGFloat, in chartHeight: CG
   - KV caching layer
 
 ### iOS App
-- **`ios/Test App/ContentView.swift`** (2,300+ lines)
+- **`ios/Ekonix/ContentView.swift`** (2,300+ lines)
   - StockAPIService class
   - Main app views
   - Stock list management
   - Ticker autocomplete
 
-- **`ios/Test App/ChartUtilities.swift`** (220 lines)
+- **`ios/Ekonix/ChartUtilities.swift`** (220 lines)
   - Shared formatting functions
   - Chart constants
   - Helper methods for all charts
@@ -470,7 +470,7 @@ struct TickerSuggestion: Identifiable, Codable {
 ## 🔮 Future Session Templates
 
 ### "Add a new chart type"
-1. Create new file: `ios/Test App/NewChartView.swift`
+1. Create new file: `ios/Ekonix/NewChartView.swift`
 2. Follow pattern from existing chart views
 3. Use ChartUtilities for formatting
 4. Add chart constants if needed
