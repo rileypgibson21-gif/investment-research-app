@@ -225,6 +225,68 @@ class StockAPIService {
         }
     }
 
+    // MARK: - Gross Profit Data (From Your API)
+    func fetchGrossProfit(symbol: String) async throws -> [GrossProfitDataPoint] {
+        let urlString = "\(apiBaseURL)/api/gross-profit/\(symbol.uppercased())"
+        guard let url = URL(string: urlString) else {
+            throw APIError.invalidURL
+        }
+
+        let (data, _) = try await URLSession.shared.data(from: url)
+
+        struct APIGrossProfitResponse: Codable {
+            let period: String
+            let grossProfit: Double
+        }
+
+        let grossProfitData = try JSONDecoder().decode([APIGrossProfitResponse].self, from: data)
+
+        #if DEBUG
+        if !grossProfitData.isEmpty {
+            print("📊 Gross Profit data for \(symbol):")
+            grossProfitData.prefix(3).forEach { item in
+                let formatted = ChartUtilities.formatQuarterDate(item.period)
+                print("  Raw: \(item.period) -> Formatted: \(formatted)")
+            }
+        }
+        #endif
+
+        return grossProfitData.map {
+            GrossProfitDataPoint(period: $0.period, grossProfit: $0.grossProfit)
+        }
+    }
+
+    // MARK: - TTM Gross Profit Data (From Your API)
+    func fetchTTMGrossProfit(symbol: String) async throws -> [GrossProfitDataPoint] {
+        let urlString = "\(apiBaseURL)/api/gross-profit-ttm/\(symbol.uppercased())"
+        guard let url = URL(string: urlString) else {
+            throw APIError.invalidURL
+        }
+
+        let (data, _) = try await URLSession.shared.data(from: url)
+
+        struct APIGrossProfitResponse: Codable {
+            let period: String
+            let grossProfit: Double
+        }
+
+        let grossProfitData = try JSONDecoder().decode([APIGrossProfitResponse].self, from: data)
+
+        #if DEBUG
+        if !grossProfitData.isEmpty {
+            print("📊 TTM Gross Profit data for \(symbol):")
+            grossProfitData.prefix(3).forEach { item in
+                let formatted = ChartUtilities.formatQuarterDate(item.period)
+                print("  Raw: \(item.period) -> Formatted: \(formatted)")
+            }
+        }
+        #endif
+
+        return grossProfitData.map {
+            GrossProfitDataPoint(period: $0.period, grossProfit: $0.grossProfit)
+        }
+    }
+
 }
 
 // MARK: - Combined Revenue Charts View (Quarterly + TTM + YoY Growth)
@@ -817,6 +879,211 @@ struct OperatingIncomeChartsView: View {
     }
 }
 
+// MARK: - Combined Gross Profit Charts View (Quarterly + TTM + YoY Growth)
+struct GrossProfitChartsView: View {
+    let symbol: String
+    let apiService: StockAPIService
+
+    @State private var quarterlyData: [GrossProfitDataPoint] = []
+    @State private var ttmData: [GrossProfitDataPoint] = []
+    @State private var yoyData: [GrossProfitDataPoint] = []
+    @State private var isLoading = false
+
+    // Pre-calculated table data for performance
+    struct TableRowData: Identifiable {
+        let id = UUID()
+        let period: String
+        let quarterlyGrossProfit: Double?
+        let ttmGrossProfit: Double?
+        let yoyPercent: Double?
+    }
+
+    var tableData: [TableRowData] {
+        let maxRows = min(max(quarterlyData.count, ttmData.count), 40)
+        guard maxRows > 0 else { return [] }
+
+        var rows: [TableRowData] = []
+        for index in 0..<maxRows {
+            let quarterly = index < quarterlyData.count ? quarterlyData[index] : nil
+            let ttm = index < ttmData.count ? ttmData[index] : nil
+
+            // Calculate YoY using TTM data if possible
+            var yoy: Double? = nil
+            if let ttm = ttm,
+               index + 4 < ttmData.count,
+               ttmData[index + 4].grossProfit != 0 {
+                let prior = ttmData[index + 4].grossProfit
+                yoy = ((ttm.grossProfit - prior) / prior) * 100
+            }
+
+            rows.append(TableRowData(
+                period: quarterly?.period ?? ttm?.period ?? "",
+                quarterlyGrossProfit: quarterly?.grossProfit,
+                ttmGrossProfit: ttm?.grossProfit,
+                yoyPercent: yoy
+            ))
+        }
+        return rows
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 0) {
+                GrossProfitChartView(symbol: symbol, apiService: apiService, onDataLoaded: { data in
+                    quarterlyData = data
+                })
+
+                Divider()
+                    .padding(.vertical, 20)
+
+                TTMGrossProfitChartView(symbol: symbol, apiService: apiService, onDataLoaded: { data in
+                    ttmData = data
+                })
+
+                Divider()
+                    .padding(.vertical, 20)
+
+                YoYGrossProfitGrowthChartView(symbol: symbol, apiService: apiService, onDataLoaded: { data in
+                    yoyData = data
+                })
+
+                // Combined Gross Profit Details Table
+                if !tableData.isEmpty {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Gross Profit Details")
+                            .font(.headline)
+                            .padding(.horizontal)
+
+                        HStack(spacing: 0) {
+                            // Fixed Quarter Column
+                            VStack(spacing: 0) {
+                                // Header
+                                Text("Quarter")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .frame(width: 80, alignment: .leading)
+                                    .padding(.vertical, 8)
+
+                                Divider()
+
+                                // Quarter labels
+                                ForEach(tableData) { row in
+                                    VStack(spacing: 0) {
+                                        Text(formatDate(row.period))
+                                            .font(.caption)
+                                            .fontWeight(.medium)
+                                            .lineLimit(1)
+                                            .minimumScaleFactor(0.8)
+                                            .frame(width: 80, alignment: .leading)
+                                            .padding(.vertical, 8)
+
+                                        if row.id != tableData.last?.id {
+                                            Divider()
+                                        }
+                                    }
+                                }
+                            }
+                            .padding(.leading, 16)
+
+                            // Scrollable Data Columns
+                            ScrollView(.horizontal, showsIndicators: true) {
+                                VStack(spacing: 0) {
+                                    // Header Row
+                                    HStack(spacing: 0) {
+                                        Text("Quarterly")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                            .frame(width: 120, alignment: .trailing)
+
+                                        Text("TTM")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                            .frame(width: 120, alignment: .trailing)
+
+                                        Text("YoY")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                            .frame(width: 80, alignment: .trailing)
+                                    }
+                                    .padding(.vertical, 8)
+                                    .padding(.trailing, 16)
+
+                                    Divider()
+
+                                    // Data Rows - simplified with pre-calculated values
+                                    ForEach(tableData) { row in
+                                        VStack(spacing: 0) {
+                                            HStack(spacing: 0) {
+                                                // Quarterly value
+                                                if let grossProfit = row.quarterlyGrossProfit {
+                                                    Text(formatValue(grossProfit))
+                                                        .font(.caption)
+                                                        .fontWeight(.semibold)
+                                                        .foregroundStyle(grossProfit >= 0 ? .blue : .red)
+                                                        .frame(width: 120, alignment: .trailing)
+                                                } else {
+                                                    Text("-")
+                                                        .font(.caption)
+                                                        .frame(width: 120, alignment: .trailing)
+                                                }
+
+                                                // TTM value
+                                                if let ttmGrossProfit = row.ttmGrossProfit {
+                                                    Text(formatValue(ttmGrossProfit))
+                                                        .font(.caption)
+                                                        .fontWeight(.semibold)
+                                                        .foregroundStyle(ttmGrossProfit >= 0 ? .blue : .red)
+                                                        .frame(width: 120, alignment: .trailing)
+                                                } else {
+                                                    Text("-")
+                                                        .font(.caption)
+                                                        .frame(width: 120, alignment: .trailing)
+                                                }
+
+                                                // YoY % value (pre-calculated)
+                                                if let yoy = row.yoyPercent {
+                                                    Text(String(format: "%+.1f%%", yoy))
+                                                        .font(.caption)
+                                                        .fontWeight(.semibold)
+                                                        .foregroundStyle(yoy >= 0 ? .green : .red)
+                                                        .frame(width: 80, alignment: .trailing)
+                                                } else {
+                                                    Text("-")
+                                                        .font(.caption)
+                                                        .frame(width: 80, alignment: .trailing)
+                                                }
+                                            }
+                                            .padding(.vertical, 8)
+                                            .padding(.trailing, 16)
+
+                                            if row.id != tableData.last?.id {
+                                                Divider()
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        .background(Color(UIColor.secondarySystemGroupedBackground))
+                        .cornerRadius(8)
+                        .padding(.horizontal, 16)
+                    }
+                    .padding(.top, 20)
+                    .padding(.bottom, 40)
+                }
+            }
+        }
+    }
+
+    private func formatDate(_ dateString: String) -> String {
+        ChartUtilities.formatQuarterDate(dateString)
+    }
+
+    private func formatValue(_ value: Double) -> String {
+        ChartUtilities.formatCurrencyValue(value)
+    }
+}
+
 // MARK: - App Data Models
 
 struct StockProfile: Codable {
@@ -860,6 +1127,12 @@ struct OperatingIncomeDataPoint: Identifiable {
     let id = UUID()
     let period: String
     let operatingIncome: Double
+}
+
+struct GrossProfitDataPoint: Identifiable {
+    let id = UUID()
+    let period: String
+    let grossProfit: Double
 }
 
 struct TickerSuggestion: Identifiable, Codable {
@@ -1648,9 +1921,17 @@ struct StockDetailView: View {
                         Text("Operating Income")
                     }
                 }
+
+                Button(action: { selectedTab = 4 }) {
+                    if selectedTab == 4 {
+                        Label("Gross Profit", systemImage: "checkmark")
+                    } else {
+                        Text("Gross Profit")
+                    }
+                }
             } label: {
                 HStack {
-                    Text(selectedTab == 0 ? "Overview" : selectedTab == 1 ? "Revenue" : selectedTab == 2 ? "Net Income" : "Operating Income")
+                    Text(selectedTab == 0 ? "Overview" : selectedTab == 1 ? "Revenue" : selectedTab == 2 ? "Net Income" : selectedTab == 3 ? "Operating Income" : "Gross Profit")
                         .fontWeight(.semibold)
                     Image(systemName: "chevron.down")
                         .font(.caption)
@@ -1697,9 +1978,13 @@ struct StockDetailView: View {
                     // Net Income
                     NetIncomeChartsView(symbol: item.symbol, apiService: apiService)
                         .padding(.bottom, 40)
-                } else {
+                } else if selectedTab == 3 {
                     // Operating Income
                     OperatingIncomeChartsView(symbol: item.symbol, apiService: apiService)
+                        .padding(.bottom, 40)
+                } else {
+                    // Gross Profit
+                    GrossProfitChartsView(symbol: item.symbol, apiService: apiService)
                         .padding(.bottom, 40)
                 }
             }

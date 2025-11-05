@@ -185,20 +185,20 @@ struct OperatingIncomeChartView: View {
                                             }
                                         }
 
-                                        // X-axis labels - show every 10th quarter for 40 bars (shows ~4-5 year labels)
+                                        // X-axis labels - show every 8th quarter for 40 bars (shows ~5 year labels)
                                         HStack(alignment: .top, spacing: ChartConstants.barSpacing) {
                                             ForEach(Array(displayData.enumerated()), id: \.element.id) { index, point in
-                                                let shouldShowLabel = index % 10 == 0 || index == displayData.count - 1
+                                                let shouldShowLabel = index % 8 == 0 || index == displayData.count - 1
 
                                                 Text(shouldShowLabel ? formatYearLabel(point.period) : "")
-                                                    .font(.system(size: 9))
+                                                    .font(.system(size: 10))
                                                     .foregroundStyle(.secondary)
                                                     .frame(width: dynamicBarWidth)
                                                     .lineLimit(1)
-                                                    .minimumScaleFactor(0.5)
+                                                    .minimumScaleFactor(0.6)
                                             }
                                         }
-                                        .padding(.top, 4)
+                                        .padding(.top, 6)
                                         .padding(.horizontal, 4)
                                     }
                                 }

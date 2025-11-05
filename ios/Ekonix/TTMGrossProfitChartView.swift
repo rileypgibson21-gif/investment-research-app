@@ -1,45 +1,46 @@
 //
-//  NetIncomeChartView.swift
+//  TTMGrossProfitChartView.swift
 //  Ekonix
 //
-//  Extracted from ContentView.swift for faster compilation
+//  Created for gross profit TTM chart
 //
 
 import SwiftUI
 
-struct NetIncomeChartView: View {
+struct TTMGrossProfitChartView: View {
     let symbol: String
     let apiService: StockAPIService
-    var onDataLoaded: (([NetIncomeDataPoint]) -> Void)? = nil
+    var onDataLoaded: (([GrossProfitDataPoint]) -> Void)? = nil
 
-    @State private var netIncomeData: [NetIncomeDataPoint] = []
+    @State private var grossProfitData: [GrossProfitDataPoint] = []
     @State private var isLoading = false
     @State private var selectedBar: UUID?
+    @State private var errorMessage: String?
 
-    var displayData: [NetIncomeDataPoint] {
-        // Sort by period (oldest first on left, newest on right) and take latest 40 quarters
-        let sorted = netIncomeData.sorted { $0.period < $1.period }
-        return Array(sorted.suffix(ChartConstants.quarterlyDataLimit))
+    var displayData: [GrossProfitDataPoint] {
+        // Sort by period (oldest first on left, newest on right) and take latest 37 TTM periods
+        let sorted = grossProfitData.sorted { $0.period < $1.period }
+        return Array(sorted.suffix(ChartConstants.ttmDataLimit))
     }
 
-    var netIncomeRange: (min: Double, max: Double) {
-        let values = displayData.map { $0.netIncome }
+    var grossProfitRange: (min: Double, max: Double) {
+        let values = displayData.map { $0.grossProfit }
         return ChartUtilities.calculateAdaptiveRange(values: values)
     }
 
     private var valueScale: ChartUtilities.ValueScale {
-        let values = displayData.map { $0.netIncome }
+        let values = displayData.map { $0.grossProfit }
         return ChartUtilities.detectValueScale(values: values)
     }
 
     private func getYAxisLabels() -> [Double] {
-        let range = netIncomeRange
+        let range = grossProfitRange
         return ChartUtilities.generateYAxisLabels(minValue: range.min, maxValue: range.max)
     }
 
     /// Calculate the Y position where zero line sits (as fraction of chart height from bottom)
     private var zeroLinePosition: CGFloat {
-        let range = netIncomeRange
+        let range = grossProfitRange
         let totalRange = range.max - range.min
         guard totalRange > 0 else { return 0 }
         // Zero position as fraction from bottom: -min / totalRange
@@ -54,16 +55,32 @@ struct NetIncomeChartView: View {
                     ProgressView()
                     Spacer()
                 }
-            } else if netIncomeData.isEmpty {
+            } else if let error = errorMessage {
+                VStack(spacing: 20) {
+                    Spacer()
+                    Image(systemName: "exclamationmark.triangle")
+                        .font(.system(size: 60))
+                        .foregroundStyle(.red)
+                    if !error.isEmpty {
+                        Text(error)
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal)
+                    }
+                    Button("Retry") {
+                        loadGrossProfit()
+                    }
+                    Spacer()
+                }
+            } else if grossProfitData.isEmpty {
                 VStack(spacing: 20) {
                     Spacer()
                     Image(systemName: "chart.bar.xaxis")
                         .font(.system(size: 60))
                         .foregroundStyle(.gray)
-                    Text("No net income data available")
+                    Text("No TTM gross profit data available")
                         .foregroundStyle(.secondary)
                     Button("Retry") {
-                        loadNetIncome()
+                        loadGrossProfit()
                     }
                     Spacer()
                 }
@@ -72,7 +89,7 @@ struct NetIncomeChartView: View {
                     VStack(spacing: 20) {
                         // Chart with title
                         VStack(alignment: .leading, spacing: 16) {
-                            Text("Quarterly Net Income")
+                            Text("Trailing Twelve Months Gross Profit")
                                 .font(.headline)
                                 .frame(maxWidth: .infinity, alignment: .center)
 
@@ -101,8 +118,8 @@ struct NetIncomeChartView: View {
                                             // Data bars (drawn first, behind gridlines)
                                             HStack(alignment: .bottom, spacing: ChartConstants.barSpacing) {
                                                 ForEach(Array(displayData.enumerated()), id: \.element.id) { index, point in
-                                                    let heightValue = barHeight(for: point.netIncome, in: ChartConstants.chartHeight)
-                                                    let offsetValue = barOffset(for: point.netIncome, barHeight: heightValue, in: ChartConstants.chartHeight)
+                                                    let heightValue = barHeight(for: point.grossProfit, in: ChartConstants.chartHeight)
+                                                    let offsetValue = barOffset(for: point.grossProfit, barHeight: heightValue, in: ChartConstants.chartHeight)
 
                                                     VStack(spacing: 4) {
                                                         if selectedBar == point.id {
@@ -110,7 +127,7 @@ struct NetIncomeChartView: View {
                                                                 Text(formatDate(point.period))
                                                                     .font(.caption2)
                                                                     .fontWeight(.bold)
-                                                                Text(formatDetailedValue(point.netIncome))
+                                                                Text(formatDetailedValue(point.grossProfit))
                                                                     .font(.caption2)
                                                                     .fontWeight(.semibold)
                                                                 #if DEBUG
@@ -176,7 +193,7 @@ struct NetIncomeChartView: View {
                                             .allowsHitTesting(false)
 
                                             // Highlighted zero line (drawn last, most prominent)
-                                            if netIncomeRange.min < 0 && netIncomeRange.max > 0 {
+                                            if grossProfitRange.min < 0 && grossProfitRange.max > 0 {
                                                 Rectangle()
                                                     .fill(Color.gray.opacity(0.5))
                                                     .frame(height: 1)
@@ -185,10 +202,10 @@ struct NetIncomeChartView: View {
                                             }
                                         }
 
-                                        // X-axis labels - show every 8th quarter for 40 bars (shows ~5 year labels)
+                                        // X-axis labels - show every 7th period for 37 bars (shows ~5-6 year labels)
                                         HStack(alignment: .top, spacing: ChartConstants.barSpacing) {
                                             ForEach(Array(displayData.enumerated()), id: \.element.id) { index, point in
-                                                let shouldShowLabel = index % 8 == 0 || index == displayData.count - 1
+                                                let shouldShowLabel = index % 7 == 0 || index == displayData.count - 1
 
                                                 Text(shouldShowLabel ? formatYearLabel(point.period) : "")
                                                     .font(.system(size: 10))
@@ -209,42 +226,42 @@ struct NetIncomeChartView: View {
                         .background(Color(uiColor: .systemBackground))
                         .cornerRadius(12)
                         .padding()
-
-                        // Remove individual data table from quarterly chart
                     }
                 }
             }
         }
         .onAppear {
-            if netIncomeData.isEmpty {
-                loadNetIncome()
+            if grossProfitData.isEmpty {
+                loadGrossProfit()
             }
         }
     }
 
-    private func loadNetIncome() {
+    private func loadGrossProfit() {
         isLoading = true
+        errorMessage = nil
 
         Task {
             do {
-                let data = try await apiService.fetchNetIncome(symbol: symbol)
+                let data = try await apiService.fetchTTMGrossProfit(symbol: symbol)
                 await MainActor.run {
-                    netIncomeData = data
-                    isLoading = false
+                    grossProfitData = data
                     onDataLoaded?(data)
+                    isLoading = false
                 }
             } catch {
                 await MainActor.run {
-                    netIncomeData = []
-                    isLoading = false
+                    grossProfitData = []
+                    errorMessage = "Failed to load TTM gross profit data"
                     onDataLoaded?([])
+                    isLoading = false
                 }
             }
         }
     }
 
     private func barHeight(for value: Double, in maxHeight: CGFloat) -> CGFloat {
-        let range = netIncomeRange
+        let range = grossProfitRange
         let totalRange = range.max - range.min
         guard totalRange > 0 else { return 0 }
 
@@ -286,7 +303,7 @@ struct NetIncomeChartView: View {
     /// Uses value-based positioning to ensure proportional spacing for asymmetric ranges
     private func yOffsetForLabel(at index: Int) -> CGFloat {
         let labels = getYAxisLabels()
-        let range = netIncomeRange
+        let range = grossProfitRange
         let totalRange = range.max - range.min
         guard totalRange > 0 else { return 0 }
 

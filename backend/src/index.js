@@ -45,6 +45,10 @@ export default {
         return await handleTTMOperatingIncome(request, env, url);
       } else if (url.pathname.startsWith('/api/operating-income/')) {
         return await handleOperatingIncome(request, env, url);
+      } else if (url.pathname.startsWith('/api/gross-profit-ttm/')) {
+        return await handleTTMGrossProfit(request, env, url);
+      } else if (url.pathname.startsWith('/api/gross-profit/')) {
+        return await handleGrossProfit(request, env, url);
       } else if (url.pathname === '/api/tickers') {
         return await handleTickers(request, env);
       } else if (url.pathname === '/api/health') {
@@ -175,6 +179,46 @@ async function handleTTMOperatingIncome(request, env, url) {
     const facts = await getCompanyFacts(symbol, env);
     const operatingIncome = extractTTMOperatingIncome(facts);
     return jsonResponse(operatingIncome);
+  } catch (error) {
+    return jsonResponse({ error: error.message }, 404);
+  }
+}
+
+/**
+ * Handle quarterly gross profit from SEC EDGAR
+ * GET /api/gross-profit/:symbol
+ */
+async function handleGrossProfit(request, env, url) {
+  const symbol = url.pathname.split('/').pop().toUpperCase();
+
+  if (!symbol) {
+    return jsonResponse({ error: 'Symbol required' }, 400);
+  }
+
+  try {
+    const facts = await getCompanyFacts(symbol, env);
+    const grossProfit = extractGrossProfit(facts);
+    return jsonResponse(grossProfit);
+  } catch (error) {
+    return jsonResponse({ error: error.message }, 404);
+  }
+}
+
+/**
+ * Handle TTM gross profit from SEC EDGAR
+ * GET /api/gross-profit-ttm/:symbol
+ */
+async function handleTTMGrossProfit(request, env, url) {
+  const symbol = url.pathname.split('/').pop().toUpperCase();
+
+  if (!symbol) {
+    return jsonResponse({ error: 'Symbol required' }, 400);
+  }
+
+  try {
+    const facts = await getCompanyFacts(symbol, env);
+    const grossProfit = extractTTMGrossProfit(facts);
+    return jsonResponse(grossProfit);
   } catch (error) {
     return jsonResponse({ error: error.message }, 404);
   }
@@ -701,6 +745,138 @@ function extractTTMOperatingIncome(facts) {
     ttm.push({
       period: quarterly[i - 3].period,  // Use most recent quarter, not oldest
       operatingIncome: ttmOperatingIncome
+    });
+  }
+
+  return ttm.slice(0, 37);
+}
+
+/**
+ * Extract quarterly gross profit (last 40 quarters = 10 years)
+ * Gross Profit = Revenue - Cost of Goods Sold
+ */
+function extractGrossProfit(facts) {
+  const grossProfitKeys = [
+    'GrossProfit'
+  ];
+
+  // Collect quarterly data and cumulative data from all available keys
+  const allQuarterly = [];
+  const allCumulative = [];
+
+  for (const key of grossProfitKeys) {
+    if (facts.facts['us-gaap'] && facts.facts['us-gaap'][key]) {
+      const units = facts.facts['us-gaap'][key].units?.USD;
+      if (!units) continue;
+
+      for (const item of units) {
+        if (!item.val || item.val === 0 || !item.start || !item.end) continue;
+
+        const startDate = new Date(item.start);
+        const endDate = new Date(item.end);
+        const daysDiff = (endDate - startDate) / (1000 * 60 * 60 * 24);
+
+        // Quarterly data (70-120 days)
+        if (daysDiff >= 70 && daysDiff <= 120) {
+          allQuarterly.push(item);
+        }
+        // Cumulative year-to-date data (for calculating missing quarters)
+        else if (daysDiff >= 150 && daysDiff <= 380) {
+          allCumulative.push(item);
+        }
+      }
+    }
+  }
+
+  // Deduplicate quarterly data
+  // Filter to only include items with quarterly 'frame' field (excludes cumulative data)
+  // Prefer amended filings (10-Q/A) and later filing dates
+  const quarterlyDeduped = allQuarterly
+    .filter(item => item.frame && /Q[1-4]/.test(item.frame)) // Only true quarterly frames
+    .sort((a, b) => {
+      // First sort by end date (descending)
+      if (a.end !== b.end) return b.end.localeCompare(a.end);
+
+      // For same period, prefer amended filings (forms with /A suffix)
+      const aIsAmended = a.form && a.form.includes('/A');
+      const bIsAmended = b.form && b.form.includes('/A');
+      if (aIsAmended && !bIsAmended) return -1;
+      if (!aIsAmended && bIsAmended) return 1;
+
+      // Then prefer later filing dates
+      return (b.filed || '').localeCompare(a.filed || '');
+    })
+    .reduce((acc, item) => {
+      if (!acc.find(x => x.period === item.end)) {
+        acc.push({ period: item.end, grossProfit: item.val, start: item.start });
+      }
+      return acc;
+    }, []);
+
+  // Calculate missing quarters from cumulative data
+  const calculated = [];
+  for (const annual of allCumulative) {
+    const annualStart = annual.start;
+    const annualEnd = annual.end;
+    const annualDays = (new Date(annualEnd) - new Date(annualStart)) / (1000 * 60 * 60 * 24);
+
+    // Only process annual data (~365 days)
+    if (annualDays < 330 || annualDays > 380) continue;
+
+    // Find the 9-month cumulative for the same fiscal year
+    const nineMonth = allCumulative.find(item =>
+      item.start === annualStart &&
+      item.end < annualEnd &&
+      Math.abs((new Date(item.end) - new Date(item.start)) / (1000 * 60 * 60 * 24) - 270) < 30
+    );
+
+    if (nineMonth) {
+      // Calculate Q4 = Annual - 9-month
+      const q4GrossProfit = annual.val - nineMonth.val;
+      // Check if we already have this quarter
+      const hasQuarter = quarterlyDeduped.find(x => x.period === annualEnd);
+      if (!hasQuarter) {
+        calculated.push({ period: annualEnd, grossProfit: q4GrossProfit, start: nineMonth.end });
+      }
+    }
+  }
+
+  // Combine quarterly and calculated data
+  const combined = [...quarterlyDeduped.map(x => ({ period: x.period, grossProfit: x.grossProfit })), ...calculated];
+
+  // Sort by end date descending and deduplicate
+  const final = combined
+    .sort((a, b) => b.period.localeCompare(a.period))
+    .reduce((acc, item) => {
+      if (!acc.find(x => x.period === item.period)) {
+        acc.push({ period: item.period, grossProfit: item.grossProfit });
+      }
+      return acc;
+    }, []);
+
+  // Return most recent 40 quarters (10 years)
+  return final.slice(0, 40);
+}
+
+/**
+ * Extract TTM gross profit (last 37 periods)
+ * TTM = Trailing Twelve Months, calculated as rolling 4-quarter sum
+ * Period is labeled with the most recent quarter in the sum
+ */
+function extractTTMGrossProfit(facts) {
+  // First get quarterly data
+  const quarterly = extractGrossProfit(facts);
+  if (quarterly.length < 4) return [];
+
+  // Calculate TTM for each period (starting from Q4)
+  const ttm = [];
+  for (let i = 3; i < quarterly.length; i++) {
+    const last4Quarters = quarterly.slice(i - 3, i + 1);
+    const ttmGrossProfit = last4Quarters.reduce((sum, q) => sum + q.grossProfit, 0);
+
+    ttm.push({
+      period: quarterly[i - 3].period,  // Use most recent quarter, not oldest
+      grossProfit: ttmGrossProfit
     });
   }
 

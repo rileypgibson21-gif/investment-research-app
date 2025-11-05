@@ -83,11 +83,11 @@ git push origin main
 ### Critical Architecture Principles
 
 **Chart Performance Pattern:**
-Complex SwiftUI charts were extracted from ContentView.swift into separate files to avoid compiler timeouts. Each chart file is ~300 lines and compiles independently:
-- `EarningsChartView.swift` - Quarterly earnings
-- `TTMEarningsChartView.swift` - TTM earnings
-- `YoYGrowthChartView.swift` - Revenue YoY growth
-- `YoYEarningsGrowthChartView.swift` - Earnings YoY growth
+Complex SwiftUI charts were extracted from ContentView.swift into separate files to avoid compiler timeouts. Each chart file is ~300 lines and compiles independently. The app now has 4 financial metrics (Revenue, Net Income, Operating Income, Gross Profit) × 3 chart types (Quarterly, TTM, YoY Growth) = 12 chart view files:
+- `RevenueChartView.swift`, `TTMRevenueChartView.swift`, `YoYGrowthChartView.swift`
+- `NetIncomeChartView.swift`, `TTMNetIncomeChartView.swift`, `YoYNetIncomeGrowthChartView.swift`
+- `OperatingIncomeChartView.swift`, `TTMOperatingIncomeChartView.swift`, `YoYOperatingIncomeGrowthChartView.swift`
+- `GrossProfitChartView.swift`, `TTMGrossProfitChartView.swift`, `YoYGrossProfitGrowthChartView.swift`
 
 **Chart Rendering Approach:**
 All charts use identical offset-based bar positioning (not split top/bottom halves):
@@ -160,7 +160,7 @@ for (let i = 3; i < data.length; i++) {
 
 **Location:** `ios/Ekonix/ChartUtilities.swift`
 
-**Purpose:** Centralized formatting and constants to ensure consistency across all 4 chart views.
+**Purpose:** Centralized formatting and constants to ensure consistency across all chart views (12 chart view files + 4 combined views).
 
 **Key Functions:**
 - `formatCurrencyValue()` - Converts to billions: `94933000000 → "$94.93B"`
@@ -267,7 +267,7 @@ These are Xcode-generated test targets. Currently minimal but kept for future te
 3. **Data Limit:** Change `ChartConstants.quarterlyDataLimit` (affects all quarterly charts)
 4. **Y-Axis Width:** Adjust `ChartConstants.yAxisWidth`
 
-**Warning:** Changes to ChartConstants affect all 4 chart views simultaneously.
+**Warning:** Changes to ChartConstants affect all chart views simultaneously (12 chart files + 4 combined views).
 
 ---
 
@@ -297,7 +297,25 @@ These are Xcode-generated test targets. Currently minimal but kept for future te
 - `ios/Ekonix/ChartUtilities.swift` (220 lines) - Shared formatting, constants
 
 **iOS Charts (all ~300 lines each):**
-- `ios/Ekonix/EarningsChartView.swift`
-- `ios/Ekonix/TTMEarningsChartView.swift`
+
+Revenue Charts:
+- `ios/Ekonix/RevenueChartView.swift`
+- `ios/Ekonix/TTMRevenueChartView.swift`
 - `ios/Ekonix/YoYGrowthChartView.swift`
-- `ios/Ekonix/YoYEarningsGrowthChartView.swift`
+
+Net Income Charts:
+- `ios/Ekonix/NetIncomeChartView.swift`
+- `ios/Ekonix/TTMNetIncomeChartView.swift`
+- `ios/Ekonix/YoYNetIncomeGrowthChartView.swift`
+
+Operating Income Charts:
+- `ios/Ekonix/OperatingIncomeChartView.swift`
+- `ios/Ekonix/TTMOperatingIncomeChartView.swift`
+- `ios/Ekonix/YoYOperatingIncomeGrowthChartView.swift`
+
+Gross Profit Charts:
+- `ios/Ekonix/GrossProfitChartView.swift`
+- `ios/Ekonix/TTMGrossProfitChartView.swift`
+- `ios/Ekonix/YoYGrossProfitGrowthChartView.swift`
+
+**Total: 12 chart view files + 4 combined views with tables**

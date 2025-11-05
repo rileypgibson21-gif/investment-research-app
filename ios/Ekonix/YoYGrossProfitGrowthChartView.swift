@@ -1,49 +1,49 @@
 //
-//  YoYGrowthChartView.swift
+//  YoYGrossProfitGrowthChartView.swift
 //  Ekonix
 //
-//  Extracted from ContentView.swift for faster compilation
+//  Created for gross profit YoY growth chart
 //
 
 import SwiftUI
 
-struct YoYGrowthChartView: View {
+struct YoYGrossProfitGrowthChartView: View {
     let symbol: String
     let apiService: StockAPIService
-    var onDataLoaded: (([RevenueDataPoint]) -> Void)? = nil
+    var onDataLoaded: (([GrossProfitDataPoint]) -> Void)? = nil
 
-    @State private var revenueData: [RevenueDataPoint] = []
+    @State private var grossProfitData: [GrossProfitDataPoint] = []
     @State private var isLoading = false
-    @State private var selectedBar: String?  // Changed from UUID? to String?
+    @State private var selectedBar: String?
 
     struct GrowthDataPoint: Identifiable {
         let period: String
         let growthPercent: Double
-        let currentRevenue: Double
-        let priorRevenue: Double
+        let currentGrossProfit: Double
+        let priorGrossProfit: Double
         let shouldRender: Bool
-        var id: String { period }  // Use period string as stable id
+        var id: String { period }
     }
 
     var growthData: [GrowthDataPoint] {
-        guard revenueData.count >= 5 else { return [] }
+        guard grossProfitData.count >= 5 else { return [] }
 
         var growth: [GrowthDataPoint] = []
-        let sortedData = revenueData.sorted { $0.period < $1.period }
+        let sortedData = grossProfitData.sorted { $0.period < $1.period }
 
         // Calculate YoY growth (comparing to 4 quarters ago)
         for i in 4..<sortedData.count {
             let current = sortedData[i]
             let prior = sortedData[i - 4]
 
-            let shouldRender = prior.revenue > 0
-            let growthPercent = shouldRender ? ((current.revenue - prior.revenue) / prior.revenue) * 100 : 0
+            let shouldRender = prior.grossProfit > 0
+            let growthPercent = shouldRender ? ((current.grossProfit - prior.grossProfit) / prior.grossProfit) * 100 : 0
 
             growth.append(GrowthDataPoint(
                 period: current.period,
                 growthPercent: growthPercent,
-                currentRevenue: current.revenue,
-                priorRevenue: prior.revenue,
+                currentGrossProfit: current.grossProfit,
+                priorGrossProfit: prior.grossProfit,
                 shouldRender: shouldRender
             ))
         }
@@ -91,13 +91,33 @@ struct YoYGrowthChartView: View {
         return ChartConstants.chartHeight / 2 - (ChartConstants.chartHeight * fractionFromBottom)
     }
 
-    @ViewBuilder
-    private var chartContentView: some View {
-        ScrollView {
+    var body: some View {
+        ZStack {
+            if isLoading {
+                VStack {
+                    Spacer()
+                    ProgressView()
+                    Spacer()
+                }
+            } else if displayData.isEmpty {
+                VStack(spacing: 20) {
+                    Spacer()
+                    Image(systemName: "chart.bar.xaxis")
+                        .font(.system(size: 60))
+                        .foregroundStyle(.gray)
+                    Text("Insufficient data for YoY growth")
+                        .foregroundStyle(.secondary)
+                    Text("Need at least 5 TTM periods of data")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                    Spacer()
+                }
+            } else {
+                ScrollView {
                     VStack(spacing: 20) {
                         // Chart with title
                         VStack(alignment: .leading, spacing: 16) {
-                            Text("TTM YoY Revenue Growth")
+                            Text("TTM YoY Gross Profit Growth")
                                 .font(.headline)
                                 .frame(maxWidth: .infinity, alignment: .center)
 
@@ -238,54 +258,30 @@ struct YoYGrowthChartView: View {
                         .padding()
                     }
                 }
-    }
-
-    var body: some View {
-        ZStack {
-            if isLoading {
-                VStack {
-                    Spacer()
-                    ProgressView()
-                    Spacer()
-                }
-            } else if displayData.isEmpty {
-                VStack(spacing: 20) {
-                    Spacer()
-                    Image(systemName: "chart.bar.xaxis")
-                        .font(.system(size: 60))
-                        .foregroundStyle(.gray)
-                    Text("Insufficient data for YoY growth")
-                        .foregroundStyle(.secondary)
-                    Text("Need at least 5 TTM periods of data")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                    Spacer()
-                }
-            } else {
-                chartContentView
             }
         }
         .onAppear {
-            if revenueData.isEmpty {
-                loadRevenue()
+            if grossProfitData.isEmpty {
+                loadGrossProfit()
             }
         }
     }
 
-    private func loadRevenue() {
+    private func loadGrossProfit() {
         isLoading = true
 
         Task {
             do {
-                let data = try await apiService.fetchTTMRevenue(symbol: symbol)
+                let data = try await apiService.fetchTTMGrossProfit(symbol: symbol)
                 await MainActor.run {
-                    revenueData = data
+                    grossProfitData = data
                     onDataLoaded?(data)
                     isLoading = false
                 }
             } catch {
                 await MainActor.run {
-                    revenueData = []
+                    grossProfitData = []
+                    onDataLoaded?([])
                     isLoading = false
                 }
             }
