@@ -237,6 +237,7 @@ class StockAPIService {
         struct APIGrossProfitResponse: Codable {
             let period: String
             let grossProfit: Double
+            let isRevenueFallback: Bool?
         }
 
         let grossProfitData = try JSONDecoder().decode([APIGrossProfitResponse].self, from: data)
@@ -252,7 +253,7 @@ class StockAPIService {
         #endif
 
         return grossProfitData.map {
-            GrossProfitDataPoint(period: $0.period, grossProfit: $0.grossProfit)
+            GrossProfitDataPoint(period: $0.period, grossProfit: $0.grossProfit, isRevenueFallback: $0.isRevenueFallback)
         }
     }
 
@@ -268,6 +269,7 @@ class StockAPIService {
         struct APIGrossProfitResponse: Codable {
             let period: String
             let grossProfit: Double
+            let isRevenueFallback: Bool?
         }
 
         let grossProfitData = try JSONDecoder().decode([APIGrossProfitResponse].self, from: data)
@@ -283,7 +285,7 @@ class StockAPIService {
         #endif
 
         return grossProfitData.map {
-            GrossProfitDataPoint(period: $0.period, grossProfit: $0.grossProfit)
+            GrossProfitDataPoint(period: $0.period, grossProfit: $0.grossProfit, isRevenueFallback: $0.isRevenueFallback)
         }
     }
 
@@ -1129,10 +1131,32 @@ struct OperatingIncomeDataPoint: Identifiable {
     let operatingIncome: Double
 }
 
-struct GrossProfitDataPoint: Identifiable {
-    let id = UUID()
+struct GrossProfitDataPoint: Identifiable, Codable {
+    let id: UUID
     let period: String
     let grossProfit: Double
+    let isRevenueFallback: Bool?
+
+    enum CodingKeys: String, CodingKey {
+        case period
+        case grossProfit
+        case isRevenueFallback
+    }
+
+    init(period: String, grossProfit: Double, isRevenueFallback: Bool? = nil) {
+        self.id = UUID()
+        self.period = period
+        self.grossProfit = grossProfit
+        self.isRevenueFallback = isRevenueFallback
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = UUID()
+        self.period = try container.decode(String.self, forKey: .period)
+        self.grossProfit = try container.decode(Double.self, forKey: .grossProfit)
+        self.isRevenueFallback = try container.decodeIfPresent(Bool.self, forKey: .isRevenueFallback)
+    }
 }
 
 struct TickerSuggestion: Identifiable, Codable {

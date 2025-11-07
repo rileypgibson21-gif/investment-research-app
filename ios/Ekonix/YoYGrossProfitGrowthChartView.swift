@@ -117,9 +117,21 @@ struct YoYGrossProfitGrowthChartView: View {
                     VStack(spacing: 20) {
                         // Chart with title
                         VStack(alignment: .leading, spacing: 16) {
-                            Text("TTM YoY Gross Profit Growth")
-                                .font(.headline)
-                                .frame(maxWidth: .infinity, alignment: .center)
+                            VStack(spacing: 4) {
+                                Text("TTM YoY Gross Profit Growth")
+                                    .font(.headline)
+                                    .frame(maxWidth: .infinity, alignment: .center)
+
+                                // Show note if this is revenue fallback data
+                                if grossProfitData.first?.isRevenueFallback == true {
+                                    Text("Note: This company does not report gross profit. Showing revenue growth instead.")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                        .frame(maxWidth: .infinity, alignment: .center)
+                                        .multilineTextAlignment(.center)
+                                        .padding(.horizontal)
+                                }
+                            }
 
                             GeometryReader { geometry in
                                 let availableWidth = geometry.size.width - ChartConstants.yAxisWidth - 16

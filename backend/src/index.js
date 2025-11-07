@@ -854,6 +854,17 @@ function extractGrossProfit(facts) {
       return acc;
     }, []);
 
+  // If no gross profit data found, fall back to revenue data
+  // This is common for financial services companies (e.g., Mastercard, banks)
+  if (final.length === 0) {
+    const revenueData = extractRevenue(facts);
+    return revenueData.map(item => ({
+      period: item.period,
+      grossProfit: item.revenue,
+      isRevenueFallback: true
+    }));
+  }
+
   // Return most recent 40 quarters (10 years)
   return final.slice(0, 40);
 }
@@ -868,16 +879,26 @@ function extractTTMGrossProfit(facts) {
   const quarterly = extractGrossProfit(facts);
   if (quarterly.length < 4) return [];
 
+  // Check if this is revenue fallback data
+  const isRevenueFallback = quarterly[0]?.isRevenueFallback || false;
+
   // Calculate TTM for each period (starting from Q4)
   const ttm = [];
   for (let i = 3; i < quarterly.length; i++) {
     const last4Quarters = quarterly.slice(i - 3, i + 1);
     const ttmGrossProfit = last4Quarters.reduce((sum, q) => sum + q.grossProfit, 0);
 
-    ttm.push({
+    const ttmPoint = {
       period: quarterly[i - 3].period,  // Use most recent quarter, not oldest
       grossProfit: ttmGrossProfit
-    });
+    };
+
+    // Pass through revenue fallback flag if applicable
+    if (isRevenueFallback) {
+      ttmPoint.isRevenueFallback = true;
+    }
+
+    ttm.push(ttmPoint);
   }
 
   return ttm.slice(0, 37);

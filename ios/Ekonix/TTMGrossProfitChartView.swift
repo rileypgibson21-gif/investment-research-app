@@ -89,9 +89,21 @@ struct TTMGrossProfitChartView: View {
                     VStack(spacing: 20) {
                         // Chart with title
                         VStack(alignment: .leading, spacing: 16) {
-                            Text("Trailing Twelve Months Gross Profit")
-                                .font(.headline)
-                                .frame(maxWidth: .infinity, alignment: .center)
+                            VStack(spacing: 4) {
+                                Text("Trailing Twelve Months Gross Profit")
+                                    .font(.headline)
+                                    .frame(maxWidth: .infinity, alignment: .center)
+
+                                // Show note if this is revenue fallback data
+                                if displayData.first?.isRevenueFallback == true {
+                                    Text("Note: This company does not report gross profit. Showing revenue instead.")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                        .frame(maxWidth: .infinity, alignment: .center)
+                                        .multilineTextAlignment(.center)
+                                        .padding(.horizontal)
+                                }
+                            }
 
                             GeometryReader { geometry in
                                 let availableWidth = geometry.size.width - ChartConstants.yAxisWidth - 16
