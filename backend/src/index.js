@@ -386,9 +386,10 @@ function extractRevenue(facts) {
 
   // Deduplicate quarterly data
   // Filter to only include items with quarterly 'frame' field (excludes cumulative data)
+  // Exclude Q4 to force calculation (prevents mixing incompatible GAAP concepts)
   // Prefer amended filings (10-Q/A) and later filing dates
   const quarterlyDeduped = allQuarterly
-    .filter(item => item.frame && /Q[1-4]/.test(item.frame)) // Only true quarterly frames
+    .filter(item => item.frame && /Q[1-3]/.test(item.frame)) // Only Q1-Q3 frames, Q4 will be calculated
     .sort((a, b) => {
       // First sort by end date (descending)
       if (a.end !== b.end) return b.end.localeCompare(a.end);
@@ -525,9 +526,10 @@ function extractEarnings(facts) {
 
   // Deduplicate quarterly data
   // Filter to only include items with quarterly 'frame' field (excludes cumulative data)
+  // Exclude Q4 to force calculation (prevents mixing incompatible GAAP concepts)
   // Prefer amended filings (10-Q/A) and later filing dates
   const quarterlyDeduped = allQuarterly
-    .filter(item => item.frame && /Q[1-4]/.test(item.frame)) // Only true quarterly frames
+    .filter(item => item.frame && /Q[1-3]/.test(item.frame)) // Only Q1-Q3 frames, Q4 will be calculated
     .sort((a, b) => {
       // First sort by end date (descending)
       if (a.end !== b.end) return b.end.localeCompare(a.end);
@@ -658,9 +660,10 @@ function extractOperatingIncome(facts) {
 
   // Deduplicate quarterly data
   // Filter to only include items with quarterly 'frame' field (excludes cumulative data)
+  // Exclude Q4 to force calculation (prevents mixing incompatible GAAP concepts)
   // Prefer amended filings (10-Q/A) and later filing dates
   const quarterlyDeduped = allQuarterly
-    .filter(item => item.frame && /Q[1-4]/.test(item.frame)) // Only true quarterly frames
+    .filter(item => item.frame && /Q[1-3]/.test(item.frame)) // Only Q1-Q3 frames, Q4 will be calculated
     .sort((a, b) => {
       // First sort by end date (descending)
       if (a.end !== b.end) return b.end.localeCompare(a.end);
@@ -790,9 +793,10 @@ function extractGrossProfit(facts) {
 
   // Deduplicate quarterly data
   // Filter to only include items with quarterly 'frame' field (excludes cumulative data)
+  // Exclude Q4 to force calculation (prevents mixing incompatible GAAP concepts)
   // Prefer amended filings (10-Q/A) and later filing dates
   const quarterlyDeduped = allQuarterly
-    .filter(item => item.frame && /Q[1-4]/.test(item.frame)) // Only true quarterly frames
+    .filter(item => item.frame && /Q[1-3]/.test(item.frame)) // Only Q1-Q3 frames, Q4 will be calculated
     .sort((a, b) => {
       // First sort by end date (descending)
       if (a.end !== b.end) return b.end.localeCompare(a.end);
