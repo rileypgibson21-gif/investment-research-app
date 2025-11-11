@@ -103,8 +103,8 @@ struct TTMNetIncomeChartView: View {
                                     ZStack(alignment: .trailing) {
                                         ForEach(Array(getYAxisLabels().enumerated()), id: \.offset) { index, value in
                                             Text(formatYAxisValue(value))
-                                                .font(.caption2)
-                                                .foregroundStyle(.secondary)
+                                                .font(.system(size: 14, weight: .semibold))
+                                                .foregroundStyle(.primary)
                                                 .lineLimit(1)
                                                 .minimumScaleFactor(0.7)
                                                 .offset(y: yOffsetForLabel(at: index))
@@ -205,22 +205,26 @@ struct TTMNetIncomeChartView: View {
                                         // X-axis labels - show every 7th period for 37 bars (shows ~5-6 year labels)
                                         HStack(alignment: .top, spacing: ChartConstants.barSpacing) {
                                             ForEach(Array(displayData.enumerated()), id: \.element.id) { index, point in
-                                                let shouldShowLabel = index % 7 == 0 || index == displayData.count - 1
+                                                let isLastIndex = index == displayData.count - 1
+                                                let lastSampledIndex = (displayData.count - 1) / 7 * 7
+                                                let shouldShowLabel = index % 7 == 0 || (isLastIndex && index - lastSampledIndex >= 3)
 
                                                 Text(shouldShowLabel ? formatYearLabel(point.period) : "")
-                                                    .font(.system(size: 10))
-                                                    .foregroundStyle(.secondary)
-                                                    .frame(width: dynamicBarWidth)
+                                                    .font(.system(size: 14, weight: .semibold))
+                                                    .foregroundStyle(.primary)
+                                                    .fixedSize()
+                                                    .rotationEffect(.degrees(-45), anchor: .topLeading)
+                                                    .frame(width: dynamicBarWidth, alignment: .topLeading)
                                                     .lineLimit(1)
-                                                    .minimumScaleFactor(0.6)
                                             }
                                         }
-                                        .padding(.top, 6)
-                                        .padding(.horizontal, 4)
+                                        .padding(.top, 40)
+                                        .padding(.leading, 4)
+                                        .padding(.trailing, 30)
                                     }
                                 }
                             }
-                            .frame(height: 340)
+                            .frame(height: 380)
                         }
                         .padding()
                         .background(Color(uiColor: .systemBackground))

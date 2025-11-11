@@ -289,6 +289,68 @@ class StockAPIService {
         }
     }
 
+    // MARK: - Shares Outstanding Data (From Your API)
+    func fetchSharesOutstanding(symbol: String) async throws -> [SharesOutstandingDataPoint] {
+        let urlString = "\(apiBaseURL)/api/shares-outstanding/\(symbol.uppercased())"
+        guard let url = URL(string: urlString) else {
+            throw APIError.invalidURL
+        }
+
+        let (data, _) = try await URLSession.shared.data(from: url)
+
+        struct APISharesOutstandingResponse: Codable {
+            let period: String
+            let sharesOutstanding: Double
+        }
+
+        let sharesData = try JSONDecoder().decode([APISharesOutstandingResponse].self, from: data)
+
+        #if DEBUG
+        if !sharesData.isEmpty {
+            print("📊 Shares Outstanding data for \(symbol):")
+            sharesData.prefix(3).forEach { item in
+                let formatted = ChartUtilities.formatQuarterDate(item.period)
+                print("  Raw: \(item.period) -> Formatted: \(formatted)")
+            }
+        }
+        #endif
+
+        return sharesData.map {
+            SharesOutstandingDataPoint(period: $0.period, sharesOutstanding: $0.sharesOutstanding)
+        }
+    }
+
+    // MARK: - TTM Shares Outstanding Data (From Your API)
+    func fetchTTMSharesOutstanding(symbol: String) async throws -> [SharesOutstandingDataPoint] {
+        let urlString = "\(apiBaseURL)/api/shares-outstanding-ttm/\(symbol.uppercased())"
+        guard let url = URL(string: urlString) else {
+            throw APIError.invalidURL
+        }
+
+        let (data, _) = try await URLSession.shared.data(from: url)
+
+        struct APISharesOutstandingResponse: Codable {
+            let period: String
+            let sharesOutstanding: Double
+        }
+
+        let sharesData = try JSONDecoder().decode([APISharesOutstandingResponse].self, from: data)
+
+        #if DEBUG
+        if !sharesData.isEmpty {
+            print("📊 TTM Shares Outstanding data for \(symbol):")
+            sharesData.prefix(3).forEach { item in
+                let formatted = ChartUtilities.formatQuarterDate(item.period)
+                print("  Raw: \(item.period) -> Formatted: \(formatted)")
+            }
+        }
+        #endif
+
+        return sharesData.map {
+            SharesOutstandingDataPoint(period: $0.period, sharesOutstanding: $0.sharesOutstanding)
+        }
+    }
+
 }
 
 // MARK: - Combined Revenue Charts View (Quarterly + TTM + YoY Growth)
@@ -424,7 +486,7 @@ struct RevenueChartsView: View {
 
                                                 // YoY % value (compare TTM to 4 periods ago)
                                                 if index + 4 < ttmData.count,
-                                                   ttmData[index + 4].revenue != 0 {
+                                                   ttmData[index + 4].revenue > 0 {
                                                     let current = ttmData[index].revenue
                                                     let prior = ttmData[index + 4].revenue
                                                     let yoy = ((current - prior) / prior) * 100
@@ -502,10 +564,12 @@ struct NetIncomeChartsView: View {
             // Calculate YoY using TTM data if possible
             var yoy: Double? = nil
             if let ttm = ttm,
-               index + 4 < ttmData.count,
-               ttmData[index + 4].netIncome != 0 {
+               index + 4 < ttmData.count {
                 let prior = ttmData[index + 4].netIncome
-                yoy = ((ttm.netIncome - prior) / prior) * 100
+                // Only calculate if prior is positive (avoid division by 0 or negative)
+                if prior > 0 {
+                    yoy = ((ttm.netIncome - prior) / prior) * 100
+                }
             }
 
             rows.append(TableRowData(
@@ -707,10 +771,12 @@ struct OperatingIncomeChartsView: View {
             // Calculate YoY using TTM data if possible
             var yoy: Double? = nil
             if let ttm = ttm,
-               index + 4 < ttmData.count,
-               ttmData[index + 4].operatingIncome != 0 {
+               index + 4 < ttmData.count {
                 let prior = ttmData[index + 4].operatingIncome
-                yoy = ((ttm.operatingIncome - prior) / prior) * 100
+                // Only calculate if prior is positive (avoid division by 0 or negative)
+                if prior > 0 {
+                    yoy = ((ttm.operatingIncome - prior) / prior) * 100
+                }
             }
 
             rows.append(TableRowData(
@@ -882,6 +948,182 @@ struct OperatingIncomeChartsView: View {
 }
 
 // MARK: - Combined Gross Profit Charts View (Quarterly + TTM + YoY Growth)
+struct SharesOutstandingChartsView: View {
+    let symbol: String
+    let apiService: StockAPIService
+
+    @State private var quarterlyData: [SharesOutstandingDataPoint] = []
+    @State private var isLoading = false
+
+    // Pre-calculated table data for performance
+    struct TableRowData: Identifiable {
+        let id = UUID()
+        let period: String
+        let quarterlySharesOutstanding: Double?
+        let yoyPercent: Double?
+    }
+
+    var tableData: [TableRowData] {
+        let maxRows = min(quarterlyData.count, 40)
+        guard maxRows > 0 else { return [] }
+
+        var rows: [TableRowData] = []
+        for index in 0..<maxRows {
+            let quarterly = index < quarterlyData.count ? quarterlyData[index] : nil
+
+            // Calculate YoY using quarterly data (4 quarters ago)
+            var yoy: Double? = nil
+            if let current = quarterly,
+               index + 4 < quarterlyData.count {
+                let prior = quarterlyData[index + 4].sharesOutstanding
+                // Only calculate if prior is positive (avoid division by 0 or negative)
+                if prior > 0 {
+                    yoy = ((current.sharesOutstanding - prior) / prior) * 100
+                }
+            }
+
+            rows.append(TableRowData(
+                period: quarterly?.period ?? "",
+                quarterlySharesOutstanding: quarterly?.sharesOutstanding,
+                yoyPercent: yoy
+            ))
+        }
+        return rows
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 0) {
+                SharesOutstandingChartView(symbol: symbol, apiService: apiService, onDataLoaded: { data in
+                    quarterlyData = data
+                })
+
+                Divider()
+                    .padding(.vertical, 20)
+
+                YoYSharesOutstandingGrowthChartView(symbol: symbol, apiService: apiService, onDataLoaded: { data in
+                    // YoY chart loads its own data
+                })
+
+                // Combined Shares Outstanding Details Table
+                if !tableData.isEmpty {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Shares Outstanding Details")
+                            .font(.headline)
+                            .padding(.horizontal)
+
+                        HStack(spacing: 0) {
+                            // Fixed Quarter Column
+                            VStack(spacing: 0) {
+                                // Header
+                                Text("Quarter")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .frame(width: 80, alignment: .leading)
+                                    .padding(.vertical, 8)
+
+                                Divider()
+
+                                // Quarter labels
+                                ForEach(tableData) { row in
+                                    VStack(spacing: 0) {
+                                        Text(formatDate(row.period))
+                                            .font(.caption)
+                                            .fontWeight(.medium)
+                                            .lineLimit(1)
+                                            .minimumScaleFactor(0.8)
+                                            .frame(width: 80, alignment: .leading)
+                                            .padding(.vertical, 8)
+
+                                        if row.id != tableData.last?.id {
+                                            Divider()
+                                        }
+                                    }
+                                }
+                            }
+                            .padding(.leading, 16)
+
+                            // Scrollable Data Columns
+                            ScrollView(.horizontal, showsIndicators: true) {
+                                VStack(spacing: 0) {
+                                    // Header Row
+                                    HStack(spacing: 0) {
+                                        Text("Quarterly")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                            .frame(width: 120, alignment: .trailing)
+
+                                        Text("YoY")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                            .frame(width: 80, alignment: .trailing)
+                                    }
+                                    .padding(.vertical, 8)
+                                    .padding(.trailing, 16)
+
+                                    Divider()
+
+                                    // Data Rows - simplified with pre-calculated values
+                                    ForEach(tableData) { row in
+                                        VStack(spacing: 0) {
+                                            HStack(spacing: 0) {
+                                                // Quarterly value
+                                                if let sharesOutstanding = row.quarterlySharesOutstanding {
+                                                    Text(formatValue(sharesOutstanding))
+                                                        .font(.caption)
+                                                        .fontWeight(.semibold)
+                                                        .foregroundStyle(sharesOutstanding >= 0 ? .blue : .red)
+                                                        .frame(width: 120, alignment: .trailing)
+                                                } else {
+                                                    Text("-")
+                                                        .font(.caption)
+                                                        .frame(width: 120, alignment: .trailing)
+                                                }
+
+                                                // YoY % value (pre-calculated)
+                                                if let yoy = row.yoyPercent {
+                                                    Text(String(format: "%+.1f%%", yoy))
+                                                        .font(.caption)
+                                                        .fontWeight(.semibold)
+                                                        .foregroundStyle(yoy >= 0 ? .green : .red)
+                                                        .frame(width: 80, alignment: .trailing)
+                                                } else {
+                                                    Text("-")
+                                                        .font(.caption)
+                                                        .frame(width: 80, alignment: .trailing)
+                                                }
+                                            }
+                                            .padding(.vertical, 8)
+                                            .padding(.trailing, 16)
+
+                                            if row.id != tableData.last?.id {
+                                                Divider()
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        .background(Color(UIColor.secondarySystemGroupedBackground))
+                        .cornerRadius(8)
+                        .padding(.horizontal, 16)
+                    }
+                    .padding(.top, 20)
+                    .padding(.bottom, 40)
+                }
+            }
+        }
+    }
+
+    private func formatDate(_ dateString: String) -> String {
+        ChartUtilities.formatQuarterDate(dateString)
+    }
+
+    private func formatValue(_ value: Double) -> String {
+        ChartUtilities.formatCurrencyValue(value)
+    }
+}
+
 struct GrossProfitChartsView: View {
     let symbol: String
     let apiService: StockAPIService
@@ -912,10 +1154,12 @@ struct GrossProfitChartsView: View {
             // Calculate YoY using TTM data if possible
             var yoy: Double? = nil
             if let ttm = ttm,
-               index + 4 < ttmData.count,
-               ttmData[index + 4].grossProfit != 0 {
+               index + 4 < ttmData.count {
                 let prior = ttmData[index + 4].grossProfit
-                yoy = ((ttm.grossProfit - prior) / prior) * 100
+                // Only calculate if prior is positive (avoid division by 0 or negative)
+                if prior > 0 {
+                    yoy = ((ttm.grossProfit - prior) / prior) * 100
+                }
             }
 
             rows.append(TableRowData(
@@ -1156,6 +1400,30 @@ struct GrossProfitDataPoint: Identifiable, Codable {
         self.period = try container.decode(String.self, forKey: .period)
         self.grossProfit = try container.decode(Double.self, forKey: .grossProfit)
         self.isRevenueFallback = try container.decodeIfPresent(Bool.self, forKey: .isRevenueFallback)
+    }
+}
+
+struct SharesOutstandingDataPoint: Identifiable, Codable {
+    let id: UUID
+    let period: String
+    let sharesOutstanding: Double
+
+    enum CodingKeys: String, CodingKey {
+        case period
+        case sharesOutstanding
+    }
+
+    init(period: String, sharesOutstanding: Double) {
+        self.id = UUID()
+        self.period = period
+        self.sharesOutstanding = sharesOutstanding
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = UUID()
+        self.period = try container.decode(String.self, forKey: .period)
+        self.sharesOutstanding = try container.decode(Double.self, forKey: .sharesOutstanding)
     }
 }
 
@@ -1953,9 +2221,17 @@ struct StockDetailView: View {
                         Text("Gross Profit")
                     }
                 }
+
+                Button(action: { selectedTab = 5 }) {
+                    if selectedTab == 5 {
+                        Label("Shares Outstanding", systemImage: "checkmark")
+                    } else {
+                        Text("Shares Outstanding")
+                    }
+                }
             } label: {
                 HStack {
-                    Text(selectedTab == 0 ? "Overview" : selectedTab == 1 ? "Revenue" : selectedTab == 2 ? "Net Income" : selectedTab == 3 ? "Operating Income" : "Gross Profit")
+                    Text(selectedTab == 0 ? "Overview" : selectedTab == 1 ? "Revenue" : selectedTab == 2 ? "Net Income" : selectedTab == 3 ? "Operating Income" : selectedTab == 4 ? "Gross Profit" : "Shares Outstanding")
                         .fontWeight(.semibold)
                     Image(systemName: "chevron.down")
                         .font(.caption)
@@ -2006,9 +2282,13 @@ struct StockDetailView: View {
                     // Operating Income
                     OperatingIncomeChartsView(symbol: item.symbol, apiService: apiService)
                         .padding(.bottom, 40)
-                } else {
+                } else if selectedTab == 4 {
                     // Gross Profit
                     GrossProfitChartsView(symbol: item.symbol, apiService: apiService)
+                        .padding(.bottom, 40)
+                } else {
+                    // Shares Outstanding
+                    SharesOutstandingChartsView(symbol: item.symbol, apiService: apiService)
                         .padding(.bottom, 40)
                 }
             }

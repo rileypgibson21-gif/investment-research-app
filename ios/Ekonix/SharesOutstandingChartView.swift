@@ -1,51 +1,51 @@
 //
-//  RevenueChartView.swift
+//  SharesOutstandingChartView.swift
 //  Ekonix
 //
-//  Created for quarterly revenue chart
+//  Created for gross profit quarterly chart
 //
 
 import SwiftUI
 
-struct RevenueChartView: View {
+struct SharesOutstandingChartView: View {
     let symbol: String
     let apiService: StockAPIService
-    var onDataLoaded: (([RevenueDataPoint]) -> Void)? = nil
+    var onDataLoaded: (([SharesOutstandingDataPoint]) -> Void)? = nil
 
-    @State private var revenueData: [RevenueDataPoint] = []
+    @State private var sharesOutstandingData: [SharesOutstandingDataPoint] = []
     @State private var isLoading = false
     @State private var selectedBar: UUID?
 
-    var displayData: [RevenueDataPoint] {
+    var displayData: [SharesOutstandingDataPoint] {
         // Sort by period (oldest first on left, newest on right) and take latest 40 quarters
-        let sorted = revenueData.sorted { $0.period < $1.period }
+        let sorted = sharesOutstandingData.sorted { $0.period < $1.period }
         return Array(sorted.suffix(ChartConstants.quarterlyDataLimit))
     }
 
-    var revenueRange: (min: Double, max: Double) {
-        let values = displayData.map { $0.revenue }
+    var sharesOutstandingRange: (min: Double, max: Double) {
+        let values = displayData.map { $0.sharesOutstanding }
         return ChartUtilities.calculateAdaptiveRange(values: values)
     }
 
     private var valueScale: ChartUtilities.ValueScale {
-        let values = displayData.map { $0.revenue }
+        let values = displayData.map { $0.sharesOutstanding }
         return ChartUtilities.detectValueScale(values: values)
     }
 
     private func getYAxisLabels() -> [Double] {
-        let range = revenueRange
+        let range = sharesOutstandingRange
         return ChartUtilities.generateYAxisLabels(minValue: range.min, maxValue: range.max)
     }
 
     /// Calculate the Y position where zero line sits (as fraction of chart height from bottom)
     private var zeroLinePosition: CGFloat {
-        let range = revenueRange
+        let range = sharesOutstandingRange
         let totalRange = range.max - range.min
         guard totalRange > 0 else { return 0 }
         // Zero position as fraction from bottom: -min / totalRange
         return CGFloat(-range.min / totalRange)
     }
-    
+
     var body: some View {
         ZStack {
             if isLoading {
@@ -54,16 +54,16 @@ struct RevenueChartView: View {
                     ProgressView()
                     Spacer()
                 }
-            } else if revenueData.isEmpty {
+            } else if sharesOutstandingData.isEmpty {
                 VStack(spacing: 20) {
                     Spacer()
                     Image(systemName: "chart.bar.xaxis")
                         .font(.system(size: 60))
                         .foregroundStyle(.gray)
-                    Text("No revenue data available")
+                    Text("No shares outstanding data available")
                         .foregroundStyle(.secondary)
                     Button("Retry") {
-                        loadRevenue()
+                        loadSharesOutstanding()
                     }
                     Spacer()
                 }
@@ -72,7 +72,7 @@ struct RevenueChartView: View {
                     VStack(spacing: 20) {
                         // Chart with title
                         VStack(alignment: .leading, spacing: 16) {
-                            Text("Quarterly Revenue")
+                            Text("Quarterly Shares Outstanding")
                                 .font(.headline)
                                 .frame(maxWidth: .infinity, alignment: .center)
 
@@ -88,6 +88,8 @@ struct RevenueChartView: View {
                                             Text(formatYAxisValue(value))
                                                 .font(.system(size: 14, weight: .semibold))
                                                 .foregroundStyle(.primary)
+                                                .lineLimit(1)
+                                                .minimumScaleFactor(0.7)
                                                 .offset(y: yOffsetForLabel(at: index))
                                         }
                                     }
@@ -96,30 +98,11 @@ struct RevenueChartView: View {
                                     // Chart area - no scrolling, all bars visible
                                     VStack(spacing: 0) {
                                         ZStack(alignment: .bottom) {
-                                            // Background gridlines
-                                            VStack(spacing: 0) {
-                                                ForEach(Array(getYAxisLabels().enumerated()), id: \.offset) { index, _ in
-                                                    Divider()
-                                                        .background(Color.gray.opacity(0.2))
-                                                    if index < getYAxisLabels().count - 1 {
-                                                        Spacer()
-                                                    }
-                                                }
-                                            }
-                                            .frame(height: ChartConstants.chartHeight)
-
-                                            // Highlighted zero line (only if range spans negative/positive)
-                                            if revenueRange.min < 0 && revenueRange.max > 0 {
-                                                Rectangle()
-                                                    .fill(Color.gray.opacity(0.5))
-                                                    .frame(height: 1)
-                                                    .offset(y: -(ChartConstants.chartHeight * zeroLinePosition))
-                                            }
-
+                                            // Data bars (drawn first, behind gridlines)
                                             HStack(alignment: .bottom, spacing: ChartConstants.barSpacing) {
                                                 ForEach(Array(displayData.enumerated()), id: \.element.id) { index, point in
-                                                    let heightValue = barHeight(for: point.revenue, in: ChartConstants.chartHeight)
-                                                    let offsetValue = barOffset(for: point.revenue, barHeight: heightValue, in: ChartConstants.chartHeight)
+                                                    let heightValue = barHeight(for: point.sharesOutstanding, in: ChartConstants.chartHeight)
+                                                    let offsetValue = barOffset(for: point.sharesOutstanding, barHeight: heightValue, in: ChartConstants.chartHeight)
 
                                                     VStack(spacing: 4) {
                                                         if selectedBar == point.id {
@@ -127,7 +110,7 @@ struct RevenueChartView: View {
                                                                 Text(formatDate(point.period))
                                                                     .font(.caption2)
                                                                     .fontWeight(.bold)
-                                                                Text(formatDetailedValue(point.revenue))
+                                                                Text(formatDetailedValue(point.sharesOutstanding))
                                                                     .font(.caption2)
                                                                     .fontWeight(.semibold)
                                                                 #if DEBUG
@@ -180,6 +163,26 @@ struct RevenueChartView: View {
                                                 }
                                             }
                                             .padding(.horizontal, 4)
+
+                                            // Background gridlines (drawn second, on top of bars)
+                                            ZStack {
+                                                ForEach(Array(getYAxisLabels().enumerated()), id: \.offset) { index, value in
+                                                    Divider()
+                                                        .background(Color.gray.opacity(0.2))
+                                                        .offset(y: yOffsetForLabel(at: index))
+                                                }
+                                            }
+                                            .frame(height: ChartConstants.chartHeight)
+                                            .allowsHitTesting(false)
+
+                                            // Highlighted zero line (drawn last, most prominent)
+                                            if sharesOutstandingRange.min < 0 && sharesOutstandingRange.max > 0 {
+                                                Rectangle()
+                                                    .fill(Color.gray.opacity(0.5))
+                                                    .frame(height: 1)
+                                                    .offset(y: -(ChartConstants.chartHeight * zeroLinePosition))
+                                                    .allowsHitTesting(false)
+                                            }
                                         }
 
                                         // X-axis labels - show every 8th quarter for 40 bars (shows ~5 year labels)
@@ -210,41 +213,40 @@ struct RevenueChartView: View {
                         .background(Color(uiColor: .systemBackground))
                         .cornerRadius(12)
                         .padding()
-
-                        // Remove individual data table from quarterly chart
                     }
                 }
             }
         }
         .onAppear {
-            if revenueData.isEmpty {
-                loadRevenue()
+            if sharesOutstandingData.isEmpty {
+                loadSharesOutstanding()
             }
         }
     }
 
-    private func loadRevenue() {
+    private func loadSharesOutstanding() {
         isLoading = true
-        
+
         Task {
             do {
-                let data = try await apiService.fetchRevenue(symbol: symbol)
+                let data = try await apiService.fetchSharesOutstanding(symbol: symbol)
                 await MainActor.run {
-                    revenueData = data
-                    onDataLoaded?(data)
+                    sharesOutstandingData = data
                     isLoading = false
+                    onDataLoaded?(data)
                 }
             } catch {
                 await MainActor.run {
-                    revenueData = []
+                    sharesOutstandingData = []
                     isLoading = false
+                    onDataLoaded?([])
                 }
             }
         }
     }
 
     private func barHeight(for value: Double, in maxHeight: CGFloat) -> CGFloat {
-        let range = revenueRange
+        let range = sharesOutstandingRange
         let totalRange = range.max - range.min
         guard totalRange > 0 else { return 0 }
 
@@ -266,15 +268,6 @@ struct RevenueChartView: View {
         }
     }
 
-    /// Calculate Y offset for a label at given index to align with gridlines
-    private func yOffsetForLabel(at index: Int) -> CGFloat {
-        let labels = getYAxisLabels()
-        let labelCount = CGFloat(labels.count)
-        let step = ChartConstants.chartHeight / (labelCount - 1)
-        // Center at 0 (middle of chart), then offset based on index
-        return -ChartConstants.chartHeight / 2 + (step * CGFloat(index))
-    }
-
     private func formatDate(_ dateString: String) -> String {
         ChartUtilities.formatQuarterDate(dateString)
     }
@@ -289,5 +282,21 @@ struct RevenueChartView: View {
 
     private func formatYAxisValue(_ value: Double) -> String {
         ChartUtilities.formatFinancialYAxisLabel(value, scale: valueScale)
+    }
+
+    /// Calculate Y offset for a label at given index to align with gridlines
+    /// Uses value-based positioning to ensure proportional spacing for asymmetric ranges
+    private func yOffsetForLabel(at index: Int) -> CGFloat {
+        let labels = getYAxisLabels()
+        let range = sharesOutstandingRange
+        let totalRange = range.max - range.min
+        guard totalRange > 0 else { return 0 }
+
+        let labelValue = labels[index]
+        // Calculate position as fraction from bottom (0 = bottom, 1 = top)
+        let fractionFromBottom = (labelValue - range.min) / totalRange
+
+        // Convert to offset from center (middle of chart = 0)
+        return ChartConstants.chartHeight / 2 - (ChartConstants.chartHeight * fractionFromBottom)
     }
 }

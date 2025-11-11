@@ -352,7 +352,7 @@ enum ChartConstants {
 
     static let chartHeight: CGFloat = 240
     static let barChartHeight: CGFloat = 210
-    static let yAxisWidth: CGFloat = 35
+    static let yAxisWidth: CGFloat = 60
     static let barSpacing: CGFloat = 2  // Minimal spacing for 40 bars to fit on screen
 
     static let scrollDelay: TimeInterval = 0.1

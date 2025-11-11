@@ -61,6 +61,12 @@ struct YoYNetIncomeGrowthChartView: View {
         return ChartUtilities.calculateAdaptiveRange(values: values)
     }
 
+    /// Check if all data points are negative (for inverted Y-axis rendering)
+    private var isAllNegative: Bool {
+        let values = displayData.map { $0.growthPercent }
+        return !values.isEmpty && values.allSatisfy { $0 < 0 }
+    }
+
     private func getYAxisLabels() -> [Double] {
         let range = growthRange
         return ChartUtilities.generateYAxisLabels(minValue: range.min, maxValue: range.max)
@@ -71,8 +77,14 @@ struct YoYNetIncomeGrowthChartView: View {
         let range = growthRange
         let totalRange = range.max - range.min
         guard totalRange > 0 else { return 0.5 }
-        // Zero position as fraction from bottom: -min / totalRange
-        return CGFloat(-range.min / totalRange)
+
+        if isAllNegative {
+            // For all-negative data: 0% at top (1.0), most negative at bottom (0.0)
+            return 1.0
+        } else {
+            // Normal: Zero position as fraction from bottom: -min / totalRange
+            return CGFloat(-range.min / totalRange)
+        }
     }
 
     /// Calculate Y offset for a label at given index to align with gridlines
@@ -84,11 +96,20 @@ struct YoYNetIncomeGrowthChartView: View {
         guard totalRange > 0 else { return 0 }
 
         let labelValue = labels[index]
-        // Calculate position as fraction from bottom (0 = bottom, 1 = top)
-        let fractionFromBottom = (labelValue - range.min) / totalRange
 
-        // Convert to offset from center (middle of chart = 0)
-        return ChartConstants.chartHeight / 2 - (ChartConstants.chartHeight * fractionFromBottom)
+        if isAllNegative {
+            // Inverted Y-axis: 0% at top, most negative at bottom
+            // Calculate position as fraction from top (0 = top, 1 = bottom)
+            let fractionFromTop = (range.max - labelValue) / totalRange
+            // Convert to offset from center (middle of chart = 0)
+            return ChartConstants.chartHeight * fractionFromTop - ChartConstants.chartHeight / 2
+        } else {
+            // Normal Y-axis
+            // Calculate position as fraction from bottom (0 = bottom, 1 = top)
+            let fractionFromBottom = (labelValue - range.min) / totalRange
+            // Convert to offset from center (middle of chart = 0)
+            return ChartConstants.chartHeight / 2 - (ChartConstants.chartHeight * fractionFromBottom)
+        }
     }
 
     var body: some View {
@@ -131,8 +152,8 @@ struct YoYNetIncomeGrowthChartView: View {
                                     ZStack(alignment: .trailing) {
                                         ForEach(Array(getYAxisLabels().enumerated()), id: \.offset) { index, value in
                                             Text(formatYAxisValue(value))
-                                                .font(.caption2)
-                                                .foregroundStyle(.secondary)
+                                                .font(.system(size: 14, weight: .semibold))
+                                                .foregroundStyle(.primary)
                                                 .lineLimit(1)
                                                 .minimumScaleFactor(0.7)
                                                 .offset(y: yOffsetForLabel(at: index))
@@ -142,6 +163,12 @@ struct YoYNetIncomeGrowthChartView: View {
 
                                     // Chart area - no scrolling, all bars visible
                                         VStack(spacing: 0) {
+                                            // Add top padding for all-negative charts to prevent title overlap
+                                            if isAllNegative {
+                                                Spacer()
+                                                    .frame(height: 30)
+                                            }
+
                                             ZStack(alignment: .bottom) {
                                                 // Data bars (drawn first, behind gridlines)
                                                 HStack(alignment: .bottom, spacing: ChartConstants.barSpacing) {
@@ -235,22 +262,26 @@ struct YoYNetIncomeGrowthChartView: View {
                                             // X-axis labels - show every 6th period for 36 bars (shows ~6 year labels)
                                             HStack(alignment: .top, spacing: ChartConstants.barSpacing) {
                                                 ForEach(Array(displayData.enumerated()), id: \.element.id) { index, point in
-                                                    let shouldShowLabel = index % 6 == 0 || index == displayData.count - 1
+                                                    let isLastIndex = index == displayData.count - 1
+                                                    let lastSampledIndex = (displayData.count - 1) / 6 * 6
+                                                    let shouldShowLabel = index % 6 == 0 || (isLastIndex && index - lastSampledIndex >= 3)
 
                                                     Text(shouldShowLabel ? formatYearLabel(point.period) : "")
-                                                        .font(.system(size: 10))
-                                                        .foregroundStyle(.secondary)
-                                                        .frame(width: dynamicBarWidth)
+                                                        .font(.system(size: 14, weight: .semibold))
+                                                        .foregroundStyle(.primary)
+                                                        .fixedSize()
+                                                        .rotationEffect(.degrees(-45), anchor: .topLeading)
+                                                        .frame(width: dynamicBarWidth, alignment: .topLeading)
                                                         .lineLimit(1)
-                                                        .minimumScaleFactor(0.6)
                                                 }
                                             }
-                                            .padding(.top, 6)
-                                            .padding(.horizontal, 4)
+                                            .padding(.top, 40)
+                                            .padding(.leading, 4)
+                                            .padding(.trailing, 30)
                                         }
                                 }
                             }
-                            .frame(height: 340)
+                            .frame(height: 380)
                         }
                         .padding()
                         .background(Color(uiColor: .systemBackground))
@@ -293,21 +324,34 @@ struct YoYNetIncomeGrowthChartView: View {
         let totalRange = range.max - range.min
         guard totalRange > 0 else { return 0 }
 
-        // Distance from zero to value
-        let normalized = abs(value) / totalRange
-        return maxHeight * normalized
+        if isAllNegative {
+            // For inverted Y-axis: height is proportional to distance from max (0%)
+            let normalized = abs(value - range.max) / totalRange
+            return maxHeight * normalized
+        } else {
+            // Normal: Distance from zero to value
+            let normalized = abs(value) / totalRange
+            return maxHeight * normalized
+        }
     }
 
     /// Calculate the offset from bottom for a bar value
     private func barOffset(for value: Double, barHeight: CGFloat, in chartHeight: CGFloat) -> CGFloat {
         let zeroY = chartHeight * zeroLinePosition
 
-        if value >= 0 {
-            // Positive values: bar sits on zero line, grows upward
-            return zeroY
-        } else {
-            // Negative values: bar grows downward from zero line
+        if isAllNegative {
+            // For inverted Y-axis: bars extend downward from top (0%)
+            // Zero is at top (zeroY = chartHeight), bars grow downward
             return zeroY - barHeight
+        } else {
+            // Normal Y-axis
+            if value >= 0 {
+                // Positive values: bar sits on zero line, grows upward
+                return zeroY
+            } else {
+                // Negative values: bar grows downward from zero line
+                return zeroY - barHeight
+            }
         }
     }
 

@@ -1,5 +1,5 @@
 //
-//  YoYGrossProfitGrowthChartView.swift
+//  YoYSharesOutstandingGrowthChartView.swift
 //  Ekonix
 //
 //  Created for gross profit YoY growth chart
@@ -7,43 +7,43 @@
 
 import SwiftUI
 
-struct YoYGrossProfitGrowthChartView: View {
+struct YoYSharesOutstandingGrowthChartView: View {
     let symbol: String
     let apiService: StockAPIService
-    var onDataLoaded: (([GrossProfitDataPoint]) -> Void)? = nil
+    var onDataLoaded: (([SharesOutstandingDataPoint]) -> Void)? = nil
 
-    @State private var grossProfitData: [GrossProfitDataPoint] = []
+    @State private var sharesOutstandingData: [SharesOutstandingDataPoint] = []
     @State private var isLoading = false
     @State private var selectedBar: String?
 
     struct GrowthDataPoint: Identifiable {
         let period: String
         let growthPercent: Double
-        let currentGrossProfit: Double
-        let priorGrossProfit: Double
+        let currentSharesOutstanding: Double
+        let priorSharesOutstanding: Double
         let shouldRender: Bool
         var id: String { period }
     }
 
     var growthData: [GrowthDataPoint] {
-        guard grossProfitData.count >= 5 else { return [] }
+        guard sharesOutstandingData.count >= 5 else { return [] }
 
         var growth: [GrowthDataPoint] = []
-        let sortedData = grossProfitData.sorted { $0.period < $1.period }
+        let sortedData = sharesOutstandingData.sorted { $0.period < $1.period }
 
         // Calculate YoY growth (comparing to 4 quarters ago)
         for i in 4..<sortedData.count {
             let current = sortedData[i]
             let prior = sortedData[i - 4]
 
-            let shouldRender = prior.grossProfit > 0
-            let growthPercent = shouldRender ? ((current.grossProfit - prior.grossProfit) / prior.grossProfit) * 100 : 0
+            let shouldRender = prior.sharesOutstanding > 0
+            let growthPercent = shouldRender ? ((current.sharesOutstanding - prior.sharesOutstanding) / prior.sharesOutstanding) * 100 : 0
 
             growth.append(GrowthDataPoint(
                 period: current.period,
                 growthPercent: growthPercent,
-                currentGrossProfit: current.grossProfit,
-                priorGrossProfit: prior.grossProfit,
+                currentSharesOutstanding: current.sharesOutstanding,
+                priorSharesOutstanding: prior.sharesOutstanding,
                 shouldRender: shouldRender
             ))
         }
@@ -138,7 +138,7 @@ struct YoYGrossProfitGrowthChartView: View {
                     VStack(spacing: 20) {
                         // Chart with title
                         VStack(alignment: .leading, spacing: 16) {
-                            Text("TTM YoY Gross Profit Growth")
+                            Text("TTM YoY Shares Outstanding Growth")
                                 .font(.headline)
                                 .frame(maxWidth: .infinity, alignment: .center)
 
@@ -292,26 +292,26 @@ struct YoYGrossProfitGrowthChartView: View {
             }
         }
         .onAppear {
-            if grossProfitData.isEmpty {
-                loadGrossProfit()
+            if sharesOutstandingData.isEmpty {
+                loadSharesOutstanding()
             }
         }
     }
 
-    private func loadGrossProfit() {
+    private func loadSharesOutstanding() {
         isLoading = true
 
         Task {
             do {
-                let data = try await apiService.fetchTTMGrossProfit(symbol: symbol)
+                let data = try await apiService.fetchTTMSharesOutstanding(symbol: symbol)
                 await MainActor.run {
-                    grossProfitData = data
+                    sharesOutstandingData = data
                     onDataLoaded?(data)
                     isLoading = false
                 }
             } catch {
                 await MainActor.run {
-                    grossProfitData = []
+                    sharesOutstandingData = []
                     onDataLoaded?([])
                     isLoading = false
                 }

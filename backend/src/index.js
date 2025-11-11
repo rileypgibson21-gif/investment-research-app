@@ -49,6 +49,10 @@ export default {
         return await handleTTMGrossProfit(request, env, url);
       } else if (url.pathname.startsWith('/api/gross-profit/')) {
         return await handleGrossProfit(request, env, url);
+      } else if (url.pathname.startsWith('/api/shares-outstanding-ttm/')) {
+        return await handleTTMSharesOutstanding(request, env, url);
+      } else if (url.pathname.startsWith('/api/shares-outstanding/')) {
+        return await handleSharesOutstanding(request, env, url);
       } else if (url.pathname === '/api/tickers') {
         return await handleTickers(request, env);
       } else if (url.pathname === '/api/health') {
@@ -225,6 +229,44 @@ async function handleTTMGrossProfit(request, env, url) {
 }
 
 /**
+ * Handle quarterly shares outstanding from SEC EDGAR
+ * GET /api/shares-outstanding/:symbol
+ */
+async function handleSharesOutstanding(request, env, url) {
+  const symbol = url.pathname.split('/').pop().toUpperCase();
+  if (!symbol) {
+    return jsonResponse({ error: 'Symbol required' }, 400);
+  }
+
+  try {
+    const facts = await getCompanyFacts(symbol, env);
+    const sharesOutstanding = extractSharesOutstanding(facts);
+    return jsonResponse(sharesOutstanding);
+  } catch (error) {
+    return jsonResponse({ error: error.message }, 404);
+  }
+}
+
+/**
+ * Handle TTM shares outstanding from SEC EDGAR
+ * GET /api/shares-outstanding-ttm/:symbol
+ */
+async function handleTTMSharesOutstanding(request, env, url) {
+  const symbol = url.pathname.split('/').pop().toUpperCase();
+  if (!symbol) {
+    return jsonResponse({ error: 'Symbol required' }, 400);
+  }
+
+  try {
+    const facts = await getCompanyFacts(symbol, env);
+    const sharesOutstanding = extractTTMSharesOutstanding(facts);
+    return jsonResponse(sharesOutstanding);
+  } catch (error) {
+    return jsonResponse({ error: error.message }, 404);
+  }
+}
+
+/**
  * Handle ticker list request
  * GET /api/tickers
  * Returns all available tickers with company names for autocomplete
@@ -349,10 +391,10 @@ async function getCIK(symbol, env) {
  */
 function extractRevenue(facts) {
   const revenueKeys = [
-    'RevenueFromContractWithCustomerExcludingAssessedTax', // Most recent (2017-present)
-    'RevenueFromContractWithCustomer',
-    'SalesRevenueNet',                                       // Older (2008-2018)
-    'Revenues'                                                // Oldest
+    'Revenues',                                              // Preferred - net revenue (most accurate)
+    'SalesRevenueNet',                                       // Alternative net revenue
+    'RevenueFromContractWithCustomerExcludingAssessedTax',  // ASC 606 (2018+) - can include gross amounts
+    'RevenueFromContractWithCustomer'                        // ASC 606 alternative
   ];
 
   // Collect quarterly data and cumulative data from all available keys
@@ -757,6 +799,11 @@ function extractTTMOperatingIncome(facts) {
 /**
  * Extract quarterly gross profit (last 40 quarters = 10 years)
  * Gross Profit = Revenue - Cost of Goods Sold
+ *
+ * Strategy:
+ * 1. Try to extract direct GrossProfit field
+ * 2. If insufficient data, calculate from Revenue - CostOfRevenue
+ * 3. Fall back to revenue for financial services companies
  */
 function extractGrossProfit(facts) {
   const grossProfitKeys = [
@@ -858,6 +905,21 @@ function extractGrossProfit(facts) {
       return acc;
     }, []);
 
+  // Always try calculating from Revenue - Cost of Revenue
+  const calculatedGrossProfit = calculateGrossProfitFromComponents(facts);
+
+  // Prefer calculated data if:
+  // 1. Direct GrossProfit field has < 20 quarters, OR
+  // 2. Calculated data has more quarters, OR
+  // 3. Calculated data is more recent (newer data)
+  if (final.length < 20 ||
+      calculatedGrossProfit.length > final.length ||
+      (calculatedGrossProfit.length > 0 && final.length > 0 && calculatedGrossProfit[0].period > final[0].period)) {
+    if (calculatedGrossProfit.length > 0) {
+      return calculatedGrossProfit.slice(0, 40);
+    }
+  }
+
   // If no gross profit data found, fall back to revenue data
   // This is common for financial services companies (e.g., Mastercard, banks)
   if (final.length === 0) {
@@ -871,6 +933,118 @@ function extractGrossProfit(facts) {
 
   // Return most recent 40 quarters (10 years)
   return final.slice(0, 40);
+}
+
+/**
+ * Calculate gross profit from Revenue - Cost of Revenue
+ * Used when GrossProfit field is not directly available
+ */
+function calculateGrossProfitFromComponents(facts) {
+  // Get revenue data
+  const revenueData = extractRevenue(facts);
+  if (revenueData.length === 0) return [];
+
+  // Get cost of revenue data
+  const costKeys = [
+    'CostOfRevenue',
+    'CostOfGoodsAndServicesSold',
+    'CostOfGoodsSold'
+  ];
+
+  const allCostData = [];
+  const allCostCumulative = [];
+
+  for (const key of costKeys) {
+    if (facts.facts['us-gaap'] && facts.facts['us-gaap'][key]) {
+      const units = facts.facts['us-gaap'][key].units?.USD;
+      if (!units) continue;
+
+      for (const item of units) {
+        if (!item.val || item.val <= 0 || !item.start || !item.end) continue;
+
+        const startDate = new Date(item.start);
+        const endDate = new Date(item.end);
+        const daysDiff = (endDate - startDate) / (1000 * 60 * 60 * 24);
+
+        // Quarterly data (70-120 days)
+        if (daysDiff >= 70 && daysDiff <= 120) {
+          allCostData.push(item);
+        }
+        // Cumulative year-to-date data
+        else if (daysDiff >= 150 && daysDiff <= 380) {
+          allCostCumulative.push(item);
+        }
+      }
+    }
+  }
+
+  // Deduplicate cost data
+  const costDeduped = allCostData
+    .filter(item => item.frame && /Q[1-3]/.test(item.frame))
+    .sort((a, b) => {
+      if (a.end !== b.end) return b.end.localeCompare(a.end);
+      const aIsAmended = a.form && a.form.includes('/A');
+      const bIsAmended = b.form && b.form.includes('/A');
+      if (aIsAmended && !bIsAmended) return -1;
+      if (!aIsAmended && bIsAmended) return 1;
+      return (b.filed || '').localeCompare(a.filed || '');
+    })
+    .reduce((acc, item) => {
+      if (!acc.find(x => x.period === item.end)) {
+        acc.push({ period: item.end, cost: item.val, start: item.start });
+      }
+      return acc;
+    }, []);
+
+  // Calculate Q4 costs from cumulative data
+  const calculatedCosts = [];
+  for (const annual of allCostCumulative) {
+    const annualStart = annual.start;
+    const annualEnd = annual.end;
+    const annualDays = (new Date(annualEnd) - new Date(annualStart)) / (1000 * 60 * 60 * 24);
+
+    if (annualDays < 330 || annualDays > 380) continue;
+
+    const nineMonth = allCostCumulative.find(item =>
+      item.start === annualStart &&
+      item.end < annualEnd &&
+      Math.abs((new Date(item.end) - new Date(item.start)) / (1000 * 60 * 60 * 24) - 270) < 30
+    );
+
+    if (nineMonth) {
+      const q4Cost = annual.val - nineMonth.val;
+      if (q4Cost > 0) {
+        const hasQuarter = costDeduped.find(x => x.period === annualEnd);
+        if (!hasQuarter) {
+          calculatedCosts.push({ period: annualEnd, cost: q4Cost });
+        }
+      }
+    }
+  }
+
+  // Combine all cost data
+  const allCosts = [...costDeduped, ...calculatedCosts]
+    .sort((a, b) => b.period.localeCompare(a.period))
+    .reduce((acc, item) => {
+      if (!acc.find(x => x.period === item.period)) {
+        acc.push(item);
+      }
+      return acc;
+    }, []);
+
+  // Calculate gross profit = Revenue - Cost
+  const grossProfitData = [];
+  for (const rev of revenueData) {
+    const cost = allCosts.find(c => c.period === rev.period);
+    if (cost) {
+      grossProfitData.push({
+        period: rev.period,
+        grossProfit: rev.revenue - cost.cost
+      });
+    }
+  }
+
+  return grossProfitData.sort((a, b) => b.period.localeCompare(a.period));
 }
 
 /**
@@ -903,6 +1077,198 @@ function extractTTMGrossProfit(facts) {
     }
 
     ttm.push(ttmPoint);
+  }
+
+  return ttm.slice(0, 37);
+}
+
+/**
+ * Extract quarterly shares outstanding from SEC EDGAR data
+ * Returns last 40 quarters of weighted average shares outstanding
+ */
+function extractSharesOutstanding(facts) {
+  // Prioritize diluted shares, then instant measurements, then basic
+  const sharesKeys = [
+    'WeightedAverageNumberOfDilutedSharesOutstanding',
+    'CommonStockSharesOutstanding',
+    'WeightedAverageNumberOfSharesOutstandingBasic'
+  ];
+
+  // Collect quarterly data from all available keys
+  const allQuarterly = [];
+
+  for (const key of sharesKeys) {
+    if (facts.facts['us-gaap'] && facts.facts['us-gaap'][key]) {
+      const units = facts.facts['us-gaap'][key].units?.shares;
+      if (!units) continue;
+
+      for (const item of units) {
+        if (!item.val || item.val <= 0 || !item.end) continue;
+
+        // For shares outstanding, look for quarterly reports
+        // Weighted average shares are typically quarterly (with start/end)
+        // Point-in-time shares may only have end date
+        if (item.start) {
+          const startDate = new Date(item.start);
+          const endDate = new Date(item.end);
+          const daysDiff = (endDate - startDate) / (1000 * 60 * 60 * 24);
+
+          // Quarterly data (70-120 days)
+          if (daysDiff >= 70 && daysDiff <= 120) {
+            allQuarterly.push(item);
+          }
+        } else {
+          // Point-in-time measurement (like CommonStockSharesOutstanding)
+          // These typically represent quarter-end values
+          allQuarterly.push(item);
+        }
+      }
+    }
+  }
+
+  // Group by period end date, keeping all candidates per period
+  const byPeriod = {};
+  for (const item of allQuarterly) {
+    if (!item.frame) continue;
+
+    // Accept quarterly frames (Q1-Q4), instant measurements (Q1I-Q4I), or annual/fiscal year frames
+    const isQuarterly = /Q[1-4]/.test(item.frame);
+    const isInstant = item.frame.endsWith('I');
+    const isAnnual = /CY\d{4}$/.test(item.frame); // Like "CY2019"
+
+    if (!isQuarterly && !isInstant && !isAnnual) continue;
+
+    // For quarterly data, accept:
+    // 1. Quarterly periods (70-120 days)
+    // 2. Annual periods with CY frame (these often have split-adjusted data)
+    // 3. Instant measurements (no start date)
+    if (item.start && !isInstant && !isAnnual) {
+      const startDate = new Date(item.start);
+      const endDate = new Date(item.end);
+      const daysDiff = (endDate - startDate) / (1000 * 60 * 60 * 24);
+      // Skip if not quarterly period
+      if (daysDiff < 70 || daysDiff > 120) continue;
+    }
+
+    if (!byPeriod[item.end]) byPeriod[item.end] = [];
+    byPeriod[item.end].push(item);
+  }
+
+  // For each period, select the best value
+  const quarterlyDeduped = Object.keys(byPeriod)
+    .sort((a, b) => b.localeCompare(a)) // Sort periods descending
+    .map(period => {
+      const candidates = byPeriod[period];
+
+      // Sort candidates: prefer larger values (split-adjusted), then weighted averages, then later filings
+      candidates.sort((a, b) => {
+        // Prefer larger values (split-adjusted data)
+        if (a.val !== b.val) return b.val - a.val;
+
+        // Prefer weighted average periods over instant measurements (more accurate for quarterly data)
+        const aIsInstant = a.frame && a.frame.endsWith('I');
+        const bIsInstant = b.frame && b.frame.endsWith('I');
+        const aHasPeriod = a.start != null;
+        const bHasPeriod = b.start != null;
+
+        // Prefer items with periods (weighted averages) over instant measurements
+        if (aHasPeriod && !bHasPeriod && !bIsInstant) return -1;
+        if (!aHasPeriod && bHasPeriod && !aIsInstant) return 1;
+
+        // Prefer later filing dates (newer filings often have split-adjusted data)
+        if (a.filed && b.filed && a.filed !== b.filed) {
+          return b.filed.localeCompare(a.filed);
+        }
+
+        // Prefer amended filings
+        const aIsAmended = a.form && a.form.includes('/A');
+        const bIsAmended = b.form && b.form.includes('/A');
+        if (aIsAmended && !bIsAmended) return -1;
+        if (!aIsAmended && bIsAmended) return 1;
+
+        return 0;
+      });
+
+      return { period: period, sharesOutstanding: candidates[0].val };
+    });
+
+  // Apply stock split adjustments
+  const adjusted = adjustForStockSplits(quarterlyDeduped);
+
+  return adjusted.slice(0, 40);
+}
+
+/**
+ * Detect and adjust for stock splits in shares outstanding data
+ * Works backwards from newest data to detect and adjust historical splits
+ */
+function adjustForStockSplits(data) {
+  if (data.length < 2) return data;
+
+  // Sort by period descending (newest first) for processing
+  const sorted = [...data].sort((a, b) => b.period.localeCompare(a.period));
+
+  // Track cumulative split ratio (starts at 1.0)
+  let cumulativeSplitRatio = 1.0;
+  const adjusted = [];
+
+  for (let i = 0; i < sorted.length; i++) {
+    const current = sorted[i];
+
+    // Apply current cumulative ratio (for periods before any detected splits)
+    adjusted.push({
+      period: current.period,
+      sharesOutstanding: current.sharesOutstanding * cumulativeSplitRatio
+    });
+
+    // Check if there's a split between this period and the previous (older) one
+    if (i < sorted.length - 1) {
+      const previous = sorted[i + 1]; // Older period
+      const ratio = current.sharesOutstanding / previous.sharesOutstanding;
+
+      // Detect split going backwards: current shares are significantly higher than previous
+      // This means a split happened, and we need to adjust older data
+      if (ratio >= 1.5 && ratio <= 10) {
+        // Round to nearest common split ratio (2, 3, 4, 5, 7, 10)
+        const commonRatios = [2, 3, 4, 5, 7, 10];
+        let detectedRatio = ratio;
+
+        for (const commonRatio of commonRatios) {
+          if (Math.abs(ratio - commonRatio) < 0.3) {
+            detectedRatio = commonRatio;
+            break;
+          }
+        }
+
+        // Accumulate the ratio for older periods
+        cumulativeSplitRatio *= detectedRatio;
+      }
+    }
+  }
+
+  // Return in original order (newest first)
+  return adjusted;
+}
+
+/**
+ * Extract TTM shares outstanding (last 37 periods)
+ * For shares outstanding, TTM is simply the average of the last 4 quarters
+ */
+function extractTTMSharesOutstanding(facts) {
+  // First get quarterly data
+  const quarterly = extractSharesOutstanding(facts);
+  if (quarterly.length < 4) return [];
+
+  // Calculate TTM average for each period
+  const ttm = [];
+  for (let i = 3; i < quarterly.length; i++) {
+    const last4Quarters = quarterly.slice(i - 3, i + 1);
+    const avgShares = last4Quarters.reduce((sum, q) => sum + q.sharesOutstanding, 0) / 4;
+
+    ttm.push({
+      period: quarterly[i - 3].period,  // Use most recent quarter
+      sharesOutstanding: avgShares
+    });
   }
 
   return ttm.slice(0, 37);
