@@ -1129,24 +1129,36 @@ function extractSharesOutstanding(facts) {
   // Group by period end date, keeping all candidates per period
   const byPeriod = {};
   for (const item of allQuarterly) {
-    if (!item.frame) continue;
+    // Check if this is quarterly data using frame (if available) or fiscal period
+    let isQuarterly = false;
+    let isInstant = false;
+    let isAnnual = false;
 
-    // Accept quarterly frames (Q1-Q4), instant measurements (Q1I-Q4I), or annual/fiscal year frames
-    const isQuarterly = /Q[1-4]/.test(item.frame);
-    const isInstant = item.frame.endsWith('I');
-    const isAnnual = /CY\d{4}$/.test(item.frame); // Like "CY2019"
+    if (item.frame) {
+      // Use frame if available
+      isQuarterly = /Q[1-4]/.test(item.frame);
+      isInstant = item.frame.endsWith('I');
+      isAnnual = /CY\d{4}$/.test(item.frame);
+    } else if (item.fp) {
+      // Fallback to fiscal period (fp) if frame not available
+      // fp values: Q1, Q2, Q3, Q4, FY
+      isQuarterly = /^Q[1-4]$/.test(item.fp);
+      isAnnual = item.fp === 'FY';
+    } else if (item.form) {
+      // Last fallback: use form type
+      isQuarterly = item.form === '10-Q';
+      isAnnual = item.form === '10-K';
+    }
 
+    // Skip if not quarterly, instant, or annual
     if (!isQuarterly && !isInstant && !isAnnual) continue;
 
-    // For quarterly data, accept:
-    // 1. Quarterly periods (70-120 days)
-    // 2. Annual periods with CY frame (these often have split-adjusted data)
-    // 3. Instant measurements (no start date)
+    // For quarterly data, verify period duration if we have start/end dates
     if (item.start && !isInstant && !isAnnual) {
       const startDate = new Date(item.start);
       const endDate = new Date(item.end);
       const daysDiff = (endDate - startDate) / (1000 * 60 * 60 * 24);
-      // Skip if not quarterly period
+      // Skip if not quarterly period (70-120 days)
       if (daysDiff < 70 || daysDiff > 120) continue;
     }
 
