@@ -27,9 +27,10 @@ struct InvestmentResearchApp: App {
         WindowGroup {
             if !appState.hasAcceptedDisclaimer {
                 DisclaimerView(hasAcceptedDisclaimer: $appState.hasAcceptedDisclaimer)
-            } else if !bypassSubscription && !subscriptionManager.isSubscribed {
+            } else if !bypassSubscription && !subscriptionManager.isSubscribed && !appState.hasBypassedPaywall {
                 SubscriptionPaywallView()
                     .environmentObject(subscriptionManager)
+                    .environmentObject(appState)
             } else {
                 ContentView()
                     .environmentObject(subscriptionManager)
@@ -47,7 +48,14 @@ class AppState: ObservableObject {
         }
     }
 
+    @Published var hasBypassedPaywall: Bool {
+        didSet {
+            UserDefaults.standard.set(hasBypassedPaywall, forKey: "hasBypassedPaywall")
+        }
+    }
+
     init() {
         self.hasAcceptedDisclaimer = UserDefaults.standard.bool(forKey: "hasAcceptedDisclaimer")
+        self.hasBypassedPaywall = UserDefaults.standard.bool(forKey: "hasBypassedPaywall")
     }
 }

@@ -10,12 +10,29 @@ import StoreKit
 
 struct SubscriptionPaywallView: View {
     @EnvironmentObject var subscriptionManager: SubscriptionManager
+    @EnvironmentObject var appState: AppState
     @Environment(\.dismiss) private var dismiss
     @State private var selectedProduct: Product?
     @State private var isPurchasing = false
     @State private var showError = false
     @State private var errorMessage = ""
     @State private var hasAttemptedLoad = false
+    @State private var tapCount = 0
+    @State private var showTestFlightBypass = false
+
+    // Check if running in TestFlight or Debug
+    private var isTestEnvironment: Bool {
+        #if DEBUG
+        return true
+        #else
+        // Check if running in TestFlight (has receipt but not from App Store)
+        if let receiptURL = Bundle.main.appStoreReceiptURL,
+           receiptURL.lastPathComponent == "sandboxReceipt" {
+            return true
+        }
+        return false
+        #endif
+    }
 
     var body: some View {
         ZStack {
@@ -35,6 +52,15 @@ struct SubscriptionPaywallView: View {
                             .font(.system(size: 70))
                             .foregroundStyle(.white)
                             .padding(.top, 40)
+                            .onTapGesture {
+                                if isTestEnvironment {
+                                    tapCount += 1
+                                    if tapCount >= 5 {
+                                        showTestFlightBypass = true
+                                        print("🔓 TestFlight bypass activated")
+                                    }
+                                }
+                            }
 
                         Text("Unlock Full Access")
                             .font(.largeTitle)
@@ -145,6 +171,35 @@ struct SubscriptionPaywallView: View {
                         Text("Restore Purchases")
                             .font(.subheadline)
                             .foregroundStyle(.white)
+                    }
+
+                    // TestFlight Bypass (only visible in test environments after 5 taps on icon)
+                    if showTestFlightBypass {
+                        Button(action: {
+                            appState.hasBypassedPaywall = true
+                            print("🔓 Paywall bypassed - user can access app without subscription")
+                            dismiss()
+                        }) {
+                            VStack(spacing: 4) {
+                                Text("Continue Without Subscription")
+                                    .font(.subheadline)
+                                    .fontWeight(.semibold)
+                                    .foregroundStyle(.yellow)
+                                Text("(TestFlight/Debug Only)")
+                                    .font(.caption2)
+                                    .foregroundStyle(.yellow.opacity(0.8))
+                            }
+                        }
+                        .padding(.vertical, 12)
+                        .padding(.horizontal, 24)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(Color.yellow.opacity(0.2))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .strokeBorder(Color.yellow, lineWidth: 2)
+                                )
+                        )
                     }
 
                     // Terms and Privacy
@@ -305,4 +360,5 @@ struct SubscriptionOptionView: View {
 #Preview {
     SubscriptionPaywallView()
         .environmentObject(SubscriptionManager())
+        .environmentObject(AppState())
 }
