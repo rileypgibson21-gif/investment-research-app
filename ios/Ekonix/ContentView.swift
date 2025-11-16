@@ -4156,6 +4156,7 @@ struct StockDetailView: View {
         }
         .navigationTitle(item.symbol.uppercased())
         .navigationBarTitleDisplayMode(.large)
+        .disableSwipeBack()
         .alert("Add Tag", isPresented: $showingAddTag) {
             TextField("Tag name", text: $newTag)
             Button("Cancel", role: .cancel) {
@@ -4738,3 +4739,33 @@ struct StatRow: View {
     }
 }
 */
+
+// MARK: - Disable Swipe Back Gesture Extension
+extension View {
+    func disableSwipeBack() -> some View {
+        self.background(
+            DisableSwipeBackView()
+        )
+    }
+}
+
+struct DisableSwipeBackView: UIViewControllerRepresentable {
+    func makeUIViewController(context: Context) -> DisableSwipeBackViewController {
+        DisableSwipeBackViewController()
+    }
+    
+    func updateUIViewController(_ uiViewController: DisableSwipeBackViewController, context: Context) {
+    }
+}
+
+class DisableSwipeBackViewController: UIViewController {
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        navigationController?.interactivePopGestureRecognizer?.isEnabled = false
+    }
+    
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        navigationController?.interactivePopGestureRecognizer?.isEnabled = true
+    }
+}
