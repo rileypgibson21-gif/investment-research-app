@@ -210,6 +210,10 @@ struct TTMRevenueChartView: View {
                                         .padding(.leading, 8)
                                         .padding(.trailing, 30)
                                     }
+
+                                    // Right padding to balance Y-axis on left
+                                    Spacer()
+                                        .frame(width: ChartConstants.rightPadding)
                                 }
                             }
                             .frame(height: 380)

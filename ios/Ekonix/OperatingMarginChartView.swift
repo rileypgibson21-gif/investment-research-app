@@ -72,7 +72,7 @@ struct OperatingMarginChartView: View {
                                 .frame(maxWidth: .infinity, alignment: .center)
 
                             GeometryReader { geometry in
-                                let availableWidth = geometry.size.width - ChartConstants.yAxisWidth - 16
+                                let availableWidth = geometry.size.width - ChartConstants.yAxisWidth - ChartConstants.rightPadding - 16
                                 let barCount = CGFloat(displayData.count)
                                 let dynamicBarWidth = max((availableWidth - (barCount - 1) * ChartConstants.barSpacing) / barCount, 3)
 
@@ -200,6 +200,10 @@ struct OperatingMarginChartView: View {
                                         .padding(.leading, 4)
                                         .padding(.trailing, 30)
                                     }
+
+                                    // Right padding to balance Y-axis on left
+                                    Spacer()
+                                        .frame(width: ChartConstants.rightPadding)
                                 }
                             }
                             .frame(height: 380)
