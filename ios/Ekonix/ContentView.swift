@@ -3952,6 +3952,7 @@ struct StockDetailView: View {
     @State private var newTag = ""
     @State private var showingAddTag = false
     @State private var selectedTab = 0
+    @State private var navigationController: UINavigationController?
 
     private let apiService = StockAPIService()
 
@@ -4156,7 +4157,15 @@ struct StockDetailView: View {
         }
         .navigationTitle(item.symbol.uppercased())
         .navigationBarTitleDisplayMode(.large)
-        .disableSwipeBack()
+        .background(
+            NavigationControllerAccessor { navController in
+                navigationController = navController
+                navController.interactivePopGestureRecognizer?.isEnabled = false
+            }
+        )
+        .onDisappear {
+            navigationController?.interactivePopGestureRecognizer?.isEnabled = true
+        }
         .alert("Add Tag", isPresented: $showingAddTag) {
             TextField("Tag name", text: $newTag)
             Button("Cancel", role: .cancel) {
@@ -4740,32 +4749,40 @@ struct StatRow: View {
 }
 */
 
-// MARK: - Disable Swipe Back Gesture Extension
-extension View {
-    func disableSwipeBack() -> some View {
-        self.background(
-            DisableSwipeBackView()
-        )
+// MARK: - Navigation Controller Accessor
+struct NavigationControllerAccessor: UIViewControllerRepresentable {
+    var callback: (UINavigationController) -> Void
+
+    func makeUIViewController(context: Context) -> NavigationControllerAccessorViewController {
+        NavigationControllerAccessorViewController(callback: callback)
+    }
+
+    func updateUIViewController(_ uiViewController: NavigationControllerAccessorViewController, context: Context) {
     }
 }
 
-struct DisableSwipeBackView: UIViewControllerRepresentable {
-    func makeUIViewController(context: Context) -> DisableSwipeBackViewController {
-        DisableSwipeBackViewController()
-    }
-    
-    func updateUIViewController(_ uiViewController: DisableSwipeBackViewController, context: Context) {
-    }
-}
+class NavigationControllerAccessorViewController: UIViewController {
+    var callback: (UINavigationController) -> Void
 
-class DisableSwipeBackViewController: UIViewController {
-    override func viewDidAppear(_ animated: Bool) {
-        super.viewDidAppear(animated)
-        navigationController?.interactivePopGestureRecognizer?.isEnabled = false
+    init(callback: @escaping (UINavigationController) -> Void) {
+        self.callback = callback
+        super.init(nibName: nil, bundle: nil)
     }
-    
-    override func viewWillDisappear(_ animated: Bool) {
-        super.viewWillDisappear(animated)
-        navigationController?.interactivePopGestureRecognizer?.isEnabled = true
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        view.isHidden = true
+    }
+
+    override func didMove(toParent parent: UIViewController?) {
+        super.didMove(toParent: parent)
+
+        if let navController = parent?.navigationController {
+            callback(navController)
+        }
     }
 }
