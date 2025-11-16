@@ -3952,7 +3952,7 @@ struct StockDetailView: View {
     @State private var newTag = ""
     @State private var showingAddTag = false
     @State private var selectedTab = 0
-    @State private var navigationController: UINavigationController?
+    @Environment(\.dismiss) private var dismiss
 
     private let apiService = StockAPIService()
 
@@ -4157,14 +4157,19 @@ struct StockDetailView: View {
         }
         .navigationTitle(item.symbol.uppercased())
         .navigationBarTitleDisplayMode(.large)
-        .background(
-            NavigationControllerAccessor { navController in
-                navigationController = navController
-                navController.interactivePopGestureRecognizer?.isEnabled = false
+        .navigationBarBackButtonHidden(true)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button(action: {
+                    dismiss()
+                }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 17, weight: .semibold))
+                        Text("Back")
+                    }
+                }
             }
-        )
-        .onDisappear {
-            navigationController?.interactivePopGestureRecognizer?.isEnabled = true
         }
         .alert("Add Tag", isPresented: $showingAddTag) {
             TextField("Tag name", text: $newTag)
@@ -4749,40 +4754,3 @@ struct StatRow: View {
 }
 */
 
-// MARK: - Navigation Controller Accessor
-struct NavigationControllerAccessor: UIViewControllerRepresentable {
-    var callback: (UINavigationController) -> Void
-
-    func makeUIViewController(context: Context) -> NavigationControllerAccessorViewController {
-        NavigationControllerAccessorViewController(callback: callback)
-    }
-
-    func updateUIViewController(_ uiViewController: NavigationControllerAccessorViewController, context: Context) {
-    }
-}
-
-class NavigationControllerAccessorViewController: UIViewController {
-    var callback: (UINavigationController) -> Void
-
-    init(callback: @escaping (UINavigationController) -> Void) {
-        self.callback = callback
-        super.init(nibName: nil, bundle: nil)
-    }
-
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
-
-    override func viewDidLoad() {
-        super.viewDidLoad()
-        view.isHidden = true
-    }
-
-    override func didMove(toParent parent: UIViewController?) {
-        super.didMove(toParent: parent)
-
-        if let navController = parent?.navigationController {
-            callback(navController)
-        }
-    }
-}
