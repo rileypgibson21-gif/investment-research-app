@@ -230,12 +230,12 @@ struct NetIncomeChartView: View {
                                         .frame(width: ChartConstants.rightPadding)
                                 }
                             }
-                            .frame(height: 600)
+                            .frame(height: 380)
                         }
-                        .padding(8)
+                        .padding()
                         .background(Color(uiColor: .systemBackground))
                         .cornerRadius(12)
-                        .padding(8)
+                        .padding()
 
                         // Remove individual data table from quarterly chart
                     }
