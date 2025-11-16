@@ -188,6 +188,25 @@ struct TTMRevenueChartView: View {
                                                 }
                                             }
                                             .padding(.horizontal, 8)
+                                            .gesture(
+                                                DragGesture(minimumDistance: 0)
+                                                    .onChanged { value in
+                                                        // Calculate which bar is being dragged over
+                                                        let totalBarWidth = dynamicBarWidth + ChartConstants.barSpacing
+                                                        let xPosition = value.location.x - 8 // Account for horizontal padding
+                                                        let barIndex = Int(xPosition / totalBarWidth)
+
+                                                        // Update selected bar if valid index
+                                                        if barIndex >= 0 && barIndex < displayData.count {
+                                                            withAnimation(.easeInOut(duration: 0.1)) {
+                                                                selectedBar = displayData[barIndex].id
+                                                            }
+                                                        }
+                                                    }
+                                                    .onEnded { _ in
+                                                        // Keep the last selected bar visible
+                                                    }
+                                            )
                                         }
 
                                         // X-axis labels - show every 7th period for 37 bars (shows ~5-6 year labels)
