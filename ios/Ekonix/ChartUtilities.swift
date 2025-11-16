@@ -350,8 +350,8 @@ enum ChartConstants {
     static let ttmDataLimit = 37        // 37 TTM periods
     static let growthDataLimit = 36     // 36 growth periods (10 years minus 4 quarters needed for YoY calc)
 
-    static let chartHeight: CGFloat = 240
-    static let barChartHeight: CGFloat = 210
+    static let chartHeight: CGFloat = 450  // Increased from 240 for larger charts
+    static let barChartHeight: CGFloat = 420  // Increased proportionally
     static let yAxisWidth: CGFloat = 60
     static let rightPadding: CGFloat = 20  // Right padding to visually balance Y-axis on left
     static let barSpacing: CGFloat = 2  // Minimal spacing for 40 bars to fit on screen

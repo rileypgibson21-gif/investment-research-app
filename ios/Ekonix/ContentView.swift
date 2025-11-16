@@ -703,14 +703,14 @@ struct RevenueChartsView: View {
                 })
                 
                 Divider()
-                    .padding(.vertical, 20)
+                    .padding(.vertical, 8)
                 
                 TTMRevenueChartView(symbol: symbol, apiService: apiService, onDataLoaded: { data in
                     ttmData = data
                 })
                 
                 Divider()
-                    .padding(.vertical, 20)
+                    .padding(.vertical, 8)
                 
                 YoYGrowthChartView(symbol: symbol, apiService: apiService, onDataLoaded: { data in
                     yoyData = data
@@ -922,14 +922,14 @@ struct NetIncomeChartsView: View {
                 })
 
                 Divider()
-                    .padding(.vertical, 20)
+                    .padding(.vertical, 8)
 
                 TTMNetIncomeChartView(symbol: symbol, apiService: apiService, onDataLoaded: { data in
                     ttmData = data
                 })
 
                 Divider()
-                    .padding(.vertical, 20)
+                    .padding(.vertical, 8)
 
                 YoYNetIncomeGrowthChartView(symbol: symbol, apiService: apiService, onDataLoaded: { data in
                     yoyData = data
@@ -1129,14 +1129,14 @@ struct OperatingIncomeChartsView: View {
                 })
 
                 Divider()
-                    .padding(.vertical, 20)
+                    .padding(.vertical, 8)
 
                 TTMOperatingIncomeChartView(symbol: symbol, apiService: apiService, onDataLoaded: { data in
                     ttmData = data
                 })
 
                 Divider()
-                    .padding(.vertical, 20)
+                    .padding(.vertical, 8)
 
                 YoYOperatingIncomeGrowthChartView(symbol: symbol, apiService: apiService, onDataLoaded: { data in
                     yoyData = data
@@ -1336,14 +1336,14 @@ struct GrossProfitChartsView: View {
                 })
 
                 Divider()
-                    .padding(.vertical, 20)
+                    .padding(.vertical, 8)
 
                 TTMGrossProfitChartView(symbol: symbol, apiService: apiService, onDataLoaded: { data in
                     ttmData = data
                 })
 
                 Divider()
-                    .padding(.vertical, 20)
+                    .padding(.vertical, 8)
 
                 YoYGrossProfitGrowthChartView(symbol: symbol, apiService: apiService, onDataLoaded: { data in
                     yoyData = data
@@ -1539,7 +1539,7 @@ struct AssetsChartsView: View {
                 })
 
                 Divider()
-                    .padding(.vertical, 20)
+                    .padding(.vertical, 8)
 
                 YoYAssetsGrowthChartView(symbol: symbol, apiService: apiService, onDataLoaded: { data in
                     yoyData = data
@@ -1717,7 +1717,7 @@ struct LiabilitiesChartsView: View {
                 })
 
                 Divider()
-                    .padding(.vertical, 20)
+                    .padding(.vertical, 8)
 
                 YoYLiabilitiesGrowthChartView(symbol: symbol, apiService: apiService, onDataLoaded: { data in
                     yoyData = data
@@ -1895,7 +1895,7 @@ struct DividendsChartsView: View {
                 })
 
                 Divider()
-                    .padding(.vertical, 20)
+                    .padding(.vertical, 8)
 
                 YoYDividendsGrowthChartView(symbol: symbol, apiService: apiService, onDataLoaded: { data in
                     yoyData = data
@@ -2076,14 +2076,14 @@ struct EBITDAChartsView: View {
                 })
 
                 Divider()
-                    .padding(.vertical, 20)
+                    .padding(.vertical, 8)
 
                 TTMEBITDAChartView(symbol: symbol, apiService: apiService, onDataLoaded: { data in
                     ttmData = data
                 })
 
                 Divider()
-                    .padding(.vertical, 20)
+                    .padding(.vertical, 8)
 
                 YoYEBITDAGrowthChartView(symbol: symbol, apiService: apiService, onDataLoaded: { data in
                     yoyData = data
@@ -2282,14 +2282,14 @@ struct FreeCashFlowChartsView: View {
                 })
 
                 Divider()
-                    .padding(.vertical, 20)
+                    .padding(.vertical, 8)
 
                 TTMFreeCashFlowChartView(symbol: symbol, apiService: apiService, onDataLoaded: { data in
                     ttmData = data
                 })
 
                 Divider()
-                    .padding(.vertical, 20)
+                    .padding(.vertical, 8)
 
                 YoYFreeCashFlowGrowthChartView(symbol: symbol, apiService: apiService, onDataLoaded: { data in
                     yoyData = data
@@ -2482,7 +2482,7 @@ struct NetMarginChartsView: View {
                 })
 
                 Divider()
-                    .padding(.vertical, 20)
+                    .padding(.vertical, 8)
 
                 YoYNetMarginGrowthChartView(symbol: symbol, apiService: apiService, onDataLoaded: { _ in })
 
@@ -2651,7 +2651,7 @@ struct OperatingMarginChartsView: View {
                 })
 
                 Divider()
-                    .padding(.vertical, 20)
+                    .padding(.vertical, 8)
 
                 YoYOperatingMarginGrowthChartView(symbol: symbol, apiService: apiService, onDataLoaded: { _ in })
 
@@ -2820,7 +2820,7 @@ struct GrossMarginChartsView: View {
                 })
 
                 Divider()
-                    .padding(.vertical, 20)
+                    .padding(.vertical, 8)
 
                 YoYGrossMarginGrowthChartView(symbol: symbol, apiService: apiService, onDataLoaded: { _ in })
 
@@ -4225,7 +4225,7 @@ struct SectionDivider: View {
     var body: some View {
         VStack(spacing: 0) {
             Divider()
-                .padding(.vertical, 20)
+                .padding(.vertical, 8)
 
             Text(title)
                 .font(.caption)

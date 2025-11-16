@@ -248,12 +248,12 @@ struct TTMAssetsChartView: View {
                                         .frame(width: ChartConstants.rightPadding)
                                 }
                             }
-                            .frame(height: 380)
+                            .frame(height: 600)
                         }
-                        .padding()
+                        .padding(8)
                         .background(Color(uiColor: .systemBackground))
                         .cornerRadius(12)
-                        .padding()
+                        .padding(8)
                     }
                 }
             }
