@@ -1,49 +1,49 @@
 //
-//  YoYSharesOutstandingGrowthChartView.swift
+//  YoYOperatingMarginGrowthChartView.swift
 //  Ekonix
 //
-//  Created for gross profit YoY growth chart
+//  Extracted from ContentView.swift for faster compilation
 //
 
 import SwiftUI
 
-struct YoYSharesOutstandingGrowthChartView: View {
+struct YoYOperatingMarginGrowthChartView: View {
     let symbol: String
     let apiService: StockAPIService
-    var onDataLoaded: (([SharesOutstandingDataPoint]) -> Void)? = nil
+    var onDataLoaded: (([OperatingMarginDataPoint]) -> Void)? = nil
 
-    @State private var sharesOutstandingData: [SharesOutstandingDataPoint] = []
+    @State private var operatingMarginData: [OperatingMarginDataPoint] = []
     @State private var isLoading = false
-    @State private var selectedBar: String?
+    @State private var selectedBar: String?  // Changed from UUID? to String?
 
     struct GrowthDataPoint: Identifiable {
         let period: String
         let growthPercent: Double
-        let currentSharesOutstanding: Double
-        let priorSharesOutstanding: Double
+        let currentOperatingMargin: Double
+        let priorOperatingMargin: Double
         let shouldRender: Bool
-        var id: String { period }
+        var id: String { period }  // Use period string as stable id
     }
 
     var growthData: [GrowthDataPoint] {
-        guard sharesOutstandingData.count >= 5 else { return [] }
+        guard operatingMarginData.count >= 5 else { return [] }
 
         var growth: [GrowthDataPoint] = []
-        let sortedData = sharesOutstandingData.sorted { $0.period < $1.period }
+        let sortedData = operatingMarginData.sorted { $0.period < $1.period }
 
         // Calculate YoY growth (comparing to 4 quarters ago)
         for i in 4..<sortedData.count {
             let current = sortedData[i]
             let prior = sortedData[i - 4]
 
-            let shouldRender = prior.sharesOutstanding > 0
-            let growthPercent = shouldRender ? ((current.sharesOutstanding - prior.sharesOutstanding) / prior.sharesOutstanding) * 100 : 0
+            let shouldRender = prior.operatingMargin > 0
+            let growthPercent = shouldRender ? ((current.operatingMargin - prior.operatingMargin) / prior.operatingMargin) * 100 : 0
 
             growth.append(GrowthDataPoint(
                 period: current.period,
                 growthPercent: growthPercent,
-                currentSharesOutstanding: current.sharesOutstanding,
-                priorSharesOutstanding: prior.sharesOutstanding,
+                currentOperatingMargin: current.operatingMargin,
+                priorOperatingMargin: prior.operatingMargin,
                 shouldRender: shouldRender
             ))
         }
@@ -112,33 +112,13 @@ struct YoYSharesOutstandingGrowthChartView: View {
         }
     }
 
-    var body: some View {
-        ZStack {
-            if isLoading {
-                VStack {
-                    Spacer()
-                    ProgressView()
-                    Spacer()
-                }
-            } else if displayData.isEmpty {
-                VStack(spacing: 20) {
-                    Spacer()
-                    Image(systemName: "chart.bar.xaxis")
-                        .font(.system(size: 60))
-                        .foregroundStyle(.gray)
-                    Text("Insufficient data for YoY growth")
-                        .foregroundStyle(.secondary)
-                    Text("Need at least 5 TTM periods of data")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                    Spacer()
-                }
-            } else {
-                ScrollView {
+    @ViewBuilder
+    private var chartContentView: some View {
+        ScrollView {
                     VStack(spacing: 20) {
                         // Chart with title
                         VStack(alignment: .leading, spacing: 16) {
-                            Text("TTM YoY Shares Outstanding Growth")
+                            Text("TTM YoY Operating Margin Growth")
                                 .font(.headline)
                                 .frame(maxWidth: .infinity, alignment: .center)
 
@@ -289,30 +269,54 @@ struct YoYSharesOutstandingGrowthChartView: View {
                         .padding()
                     }
                 }
+    }
+
+    var body: some View {
+        ZStack {
+            if isLoading {
+                VStack {
+                    Spacer()
+                    ProgressView()
+                    Spacer()
+                }
+            } else if displayData.isEmpty {
+                VStack(spacing: 20) {
+                    Spacer()
+                    Image(systemName: "chart.bar.xaxis")
+                        .font(.system(size: 60))
+                        .foregroundStyle(.gray)
+                    Text("Insufficient data for YoY growth")
+                        .foregroundStyle(.secondary)
+                    Text("Need at least 5 TTM periods of data")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                    Spacer()
+                }
+            } else {
+                chartContentView
             }
         }
         .onAppear {
-            if sharesOutstandingData.isEmpty {
-                loadSharesOutstanding()
+            if operatingMarginData.isEmpty {
+                loadOperatingMargin()
             }
         }
     }
 
-    private func loadSharesOutstanding() {
+    private func loadOperatingMargin() {
         isLoading = true
 
         Task {
             do {
-                let data = try await apiService.fetchTTMSharesOutstanding(symbol: symbol)
+                let data = try await apiService.fetchTTMOperatingMargin(symbol: symbol)
                 await MainActor.run {
-                    sharesOutstandingData = data
+                    operatingMarginData = data
                     onDataLoaded?(data)
                     isLoading = false
                 }
             } catch {
                 await MainActor.run {
-                    sharesOutstandingData = []
-                    onDataLoaded?([])
+                    operatingMarginData = []
                     isLoading = false
                 }
             }

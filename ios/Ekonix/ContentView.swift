@@ -289,65 +289,397 @@ class StockAPIService {
         }
     }
 
-    // MARK: - Shares Outstanding Data (From Your API)
-    func fetchSharesOutstanding(symbol: String) async throws -> [SharesOutstandingDataPoint] {
-        let urlString = "\(apiBaseURL)/api/shares-outstanding/\(symbol.uppercased())"
+    // MARK: - Assets Data (From Your API)
+    func fetchAssets(symbol: String) async throws -> [AssetsDataPoint] {
+        let urlString = "\(apiBaseURL)/api/assets/\(symbol.uppercased())"
         guard let url = URL(string: urlString) else {
             throw APIError.invalidURL
         }
 
         let (data, _) = try await URLSession.shared.data(from: url)
 
-        struct APISharesOutstandingResponse: Codable {
+        struct APIAssetsResponse: Codable {
             let period: String
-            let sharesOutstanding: Double
+            let assets: Double
         }
 
-        let sharesData = try JSONDecoder().decode([APISharesOutstandingResponse].self, from: data)
+        let assetsData = try JSONDecoder().decode([APIAssetsResponse].self, from: data)
 
         #if DEBUG
-        if !sharesData.isEmpty {
-            print("📊 Shares Outstanding data for \(symbol):")
-            sharesData.prefix(3).forEach { item in
+        if !assetsData.isEmpty {
+            print("📊 Assets data for \(symbol):")
+            assetsData.prefix(3).forEach { item in
                 let formatted = ChartUtilities.formatQuarterDate(item.period)
                 print("  Raw: \(item.period) -> Formatted: \(formatted)")
             }
         }
         #endif
 
-        return sharesData.map {
-            SharesOutstandingDataPoint(period: $0.period, sharesOutstanding: $0.sharesOutstanding)
+        return assetsData.map {
+            AssetsDataPoint(period: $0.period, assets: $0.assets)
         }
     }
 
-    // MARK: - TTM Shares Outstanding Data (From Your API)
-    func fetchTTMSharesOutstanding(symbol: String) async throws -> [SharesOutstandingDataPoint] {
-        let urlString = "\(apiBaseURL)/api/shares-outstanding-ttm/\(symbol.uppercased())"
+    // MARK: - TTM Assets Data (From Your API)
+    func fetchTTMAssets(symbol: String) async throws -> [AssetsDataPoint] {
+        let urlString = "\(apiBaseURL)/api/assets-ttm/\(symbol.uppercased())"
         guard let url = URL(string: urlString) else {
             throw APIError.invalidURL
         }
 
         let (data, _) = try await URLSession.shared.data(from: url)
 
-        struct APISharesOutstandingResponse: Codable {
+        struct APIAssetsResponse: Codable {
             let period: String
-            let sharesOutstanding: Double
+            let assets: Double
         }
 
-        let sharesData = try JSONDecoder().decode([APISharesOutstandingResponse].self, from: data)
+        let assetsData = try JSONDecoder().decode([APIAssetsResponse].self, from: data)
 
         #if DEBUG
-        if !sharesData.isEmpty {
-            print("📊 TTM Shares Outstanding data for \(symbol):")
-            sharesData.prefix(3).forEach { item in
+        if !assetsData.isEmpty {
+            print("📊 TTM Assets data for \(symbol):")
+            assetsData.prefix(3).forEach { item in
                 let formatted = ChartUtilities.formatQuarterDate(item.period)
                 print("  Raw: \(item.period) -> Formatted: \(formatted)")
             }
         }
         #endif
 
-        return sharesData.map {
-            SharesOutstandingDataPoint(period: $0.period, sharesOutstanding: $0.sharesOutstanding)
+        return assetsData.map {
+            AssetsDataPoint(period: $0.period, assets: $0.assets)
+        }
+    }
+
+    // MARK: - Liabilities Data (From Your API)
+    func fetchLiabilities(symbol: String) async throws -> [LiabilitiesDataPoint] {
+        let urlString = "\(apiBaseURL)/api/liabilities/\(symbol.uppercased())"
+        guard let url = URL(string: urlString) else {
+            throw APIError.invalidURL
+        }
+
+        let (data, _) = try await URLSession.shared.data(from: url)
+
+        struct APILiabilitiesResponse: Codable {
+            let period: String
+            let liabilities: Double
+        }
+
+        let liabilitiesData = try JSONDecoder().decode([APILiabilitiesResponse].self, from: data)
+
+        #if DEBUG
+        if !liabilitiesData.isEmpty {
+            print("📊 Liabilities data for \(symbol):")
+            liabilitiesData.prefix(3).forEach { item in
+                let formatted = ChartUtilities.formatQuarterDate(item.period)
+                print("  Raw: \(item.period) -> Formatted: \(formatted)")
+            }
+        }
+        #endif
+
+        return liabilitiesData.map {
+            LiabilitiesDataPoint(period: $0.period, liabilities: $0.liabilities)
+        }
+    }
+
+    // MARK: - Dividends Data (From Your API)
+    func fetchDividends(symbol: String) async throws -> [DividendsDataPoint] {
+        let urlString = "\(apiBaseURL)/api/dividends/\(symbol.uppercased())"
+        guard let url = URL(string: urlString) else {
+            throw APIError.invalidURL
+        }
+
+        let (data, _) = try await URLSession.shared.data(from: url)
+
+        struct APIDividendsResponse: Codable {
+            let period: String
+            let dividends: Double
+        }
+
+        let dividendsData = try JSONDecoder().decode([APIDividendsResponse].self, from: data)
+
+        #if DEBUG
+        if !dividendsData.isEmpty {
+            print("📊 Dividends data for \(symbol):")
+            dividendsData.prefix(3).forEach { item in
+                let formatted = ChartUtilities.formatQuarterDate(item.period)
+                print("  Raw: \(item.period) -> Formatted: \(formatted)")
+            }
+        }
+        #endif
+
+        return dividendsData.map {
+            DividendsDataPoint(period: $0.period, dividends: $0.dividends)
+        }
+    }
+
+    func fetchEBITDA(symbol: String) async throws -> [EBITDADataPoint] {
+        let urlString = "\(apiBaseURL)/api/ebitda/\(symbol.uppercased())"
+        guard let url = URL(string: urlString) else {
+            throw APIError.invalidURL
+        }
+
+        let (data, _) = try await URLSession.shared.data(from: url)
+
+        struct APIEBITDAResponse: Codable {
+            let period: String
+            let ebitda: Double
+        }
+
+        let ebitdaData = try JSONDecoder().decode([APIEBITDAResponse].self, from: data)
+
+        #if DEBUG
+        if !ebitdaData.isEmpty {
+            print("📊 EBITDA data for \(symbol):")
+            ebitdaData.prefix(3).forEach { item in
+                let formatted = ChartUtilities.formatQuarterDate(item.period)
+                print("  Raw: \(item.period) -> Formatted: \(formatted)")
+            }
+        }
+        #endif
+
+        return ebitdaData.map {
+            EBITDADataPoint(period: $0.period, ebitda: $0.ebitda)
+        }
+    }
+
+    func fetchTTMEBITDA(symbol: String) async throws -> [EBITDADataPoint] {
+        let urlString = "\(apiBaseURL)/api/ebitda-ttm/\(symbol.uppercased())"
+        guard let url = URL(string: urlString) else {
+            throw APIError.invalidURL
+        }
+
+        let (data, _) = try await URLSession.shared.data(from: url)
+
+        struct APIEBITDAResponse: Codable {
+            let period: String
+            let ebitda: Double
+        }
+
+        let ebitdaData = try JSONDecoder().decode([APIEBITDAResponse].self, from: data)
+
+        #if DEBUG
+        if !ebitdaData.isEmpty {
+            print("📊 TTM EBITDA data for \(symbol):")
+            ebitdaData.prefix(3).forEach { item in
+                let formatted = ChartUtilities.formatQuarterDate(item.period)
+                print("  Raw: \(item.period) -> Formatted: \(formatted)")
+            }
+        }
+        #endif
+
+        return ebitdaData.map {
+            EBITDADataPoint(period: $0.period, ebitda: $0.ebitda)
+        }
+    }
+
+    func fetchFreeCashFlow(symbol: String) async throws -> [FreeCashFlowDataPoint] {
+        let urlString = "\(apiBaseURL)/api/free-cash-flow/\(symbol.uppercased())"
+        guard let url = URL(string: urlString) else {
+            throw APIError.invalidURL
+        }
+
+        let (data, _) = try await URLSession.shared.data(from: url)
+
+        struct APIFreeCashFlowResponse: Codable {
+            let period: String
+            let freeCashFlow: Double
+        }
+
+        let fcfData = try JSONDecoder().decode([APIFreeCashFlowResponse].self, from: data)
+
+        #if DEBUG
+        if !fcfData.isEmpty {
+            print("📊 Free Cash Flow data for \(symbol):")
+            fcfData.prefix(3).forEach { item in
+                let formatted = ChartUtilities.formatQuarterDate(item.period)
+                print("  Raw: \(item.period) -> Formatted: \(formatted)")
+            }
+        }
+        #endif
+
+        return fcfData.map {
+            FreeCashFlowDataPoint(period: $0.period, freeCashFlow: $0.freeCashFlow)
+        }
+    }
+
+    func fetchTTMFreeCashFlow(symbol: String) async throws -> [FreeCashFlowDataPoint] {
+        let urlString = "\(apiBaseURL)/api/free-cash-flow-ttm/\(symbol.uppercased())"
+        guard let url = URL(string: urlString) else {
+            throw APIError.invalidURL
+        }
+
+        let (data, _) = try await URLSession.shared.data(from: url)
+
+        struct APIFreeCashFlowResponse: Codable {
+            let period: String
+            let freeCashFlow: Double
+        }
+
+        let fcfData = try JSONDecoder().decode([APIFreeCashFlowResponse].self, from: data)
+
+        #if DEBUG
+        if !fcfData.isEmpty {
+            print("📊 TTM Free Cash Flow data for \(symbol):")
+            fcfData.prefix(3).forEach { item in
+                let formatted = ChartUtilities.formatQuarterDate(item.period)
+                print("  Raw: \(item.period) -> Formatted: \(formatted)")
+            }
+        }
+        #endif
+
+        return fcfData.map {
+            FreeCashFlowDataPoint(period: $0.period, freeCashFlow: $0.freeCashFlow)
+        }
+    }
+
+    func fetchNetMargin(symbol: String) async throws -> [NetMarginDataPoint] {
+        let urlString = "\(apiBaseURL)/api/net-margin/\(symbol.uppercased())"
+        guard let url = URL(string: urlString) else {
+            throw APIError.invalidURL
+        }
+
+        let (data, _) = try await URLSession.shared.data(from: url)
+
+        struct APINetMarginResponse: Codable {
+            let period: String
+            let netMargin: Double
+        }
+
+        let netMarginData = try JSONDecoder().decode([APINetMarginResponse].self, from: data)
+
+        #if DEBUG
+        if !netMarginData.isEmpty {
+            print("📊 Net Margin data for \(symbol):")
+            netMarginData.prefix(3).forEach { item in
+                let formatted = ChartUtilities.formatQuarterDate(item.period)
+                print("  Raw: \(item.period) -> Formatted: \(formatted), Margin: \(String(format: "%.2f", item.netMargin))%")
+            }
+        }
+        #endif
+
+        return netMarginData.map {
+            NetMarginDataPoint(period: $0.period, netMargin: $0.netMargin)
+        }
+    }
+
+    func fetchOperatingMargin(symbol: String) async throws -> [OperatingMarginDataPoint] {
+        let urlString = "\(apiBaseURL)/api/operating-margin/\(symbol.uppercased())"
+        guard let url = URL(string: urlString) else {
+            throw APIError.invalidURL
+        }
+
+        let (data, _) = try await URLSession.shared.data(from: url)
+
+        struct APIOperatingMarginResponse: Codable {
+            let period: String
+            let operatingMargin: Double
+        }
+
+        let operatingMarginData = try JSONDecoder().decode([APIOperatingMarginResponse].self, from: data)
+
+        #if DEBUG
+        if !operatingMarginData.isEmpty {
+            print("📊 Operating Margin data for \(symbol):")
+            operatingMarginData.prefix(3).forEach { item in
+                let formatted = ChartUtilities.formatQuarterDate(item.period)
+                print("  Raw: \(item.period) -> Formatted: \(formatted), Margin: \(String(format: "%.2f", item.operatingMargin))%")
+            }
+        }
+        #endif
+
+        return operatingMarginData.map {
+            OperatingMarginDataPoint(period: $0.period, operatingMargin: $0.operatingMargin)
+        }
+    }
+
+    func fetchTTMNetMargin(symbol: String) async throws -> [NetMarginDataPoint] {
+        let urlString = "\(apiBaseURL)/api/net-margin-ttm/\(symbol.uppercased())"
+        guard let url = URL(string: urlString) else {
+            throw APIError.invalidURL
+        }
+
+        let (data, _) = try await URLSession.shared.data(from: url)
+
+        struct APINetMarginResponse: Codable {
+            let period: String
+            let netMargin: Double
+        }
+
+        let netMarginData = try JSONDecoder().decode([APINetMarginResponse].self, from: data)
+
+        #if DEBUG
+        if !netMarginData.isEmpty {
+            print("📊 TTM Net Margin data for \(symbol):")
+            netMarginData.prefix(3).forEach { item in
+                let formatted = ChartUtilities.formatQuarterDate(item.period)
+                print("  Raw: \(item.period) -> Formatted: \(formatted), Margin: \(String(format: "%.2f", item.netMargin))%")
+            }
+        }
+        #endif
+
+        return netMarginData.map {
+            NetMarginDataPoint(period: $0.period, netMargin: $0.netMargin)
+        }
+    }
+
+    func fetchTTMOperatingMargin(symbol: String) async throws -> [OperatingMarginDataPoint] {
+        let urlString = "\(apiBaseURL)/api/operating-margin-ttm/\(symbol.uppercased())"
+        guard let url = URL(string: urlString) else {
+            throw APIError.invalidURL
+        }
+
+        let (data, _) = try await URLSession.shared.data(from: url)
+
+        struct APIOperatingMarginResponse: Codable {
+            let period: String
+            let operatingMargin: Double
+        }
+
+        let operatingMarginData = try JSONDecoder().decode([APIOperatingMarginResponse].self, from: data)
+
+        #if DEBUG
+        if !operatingMarginData.isEmpty {
+            print("📊 TTM Operating Margin data for \(symbol):")
+            operatingMarginData.prefix(3).forEach { item in
+                let formatted = ChartUtilities.formatQuarterDate(item.period)
+                print("  Raw: \(item.period) -> Formatted: \(formatted), Margin: \(String(format: "%.2f", item.operatingMargin))%")
+            }
+        }
+        #endif
+
+        return operatingMarginData.map {
+            OperatingMarginDataPoint(period: $0.period, operatingMargin: $0.operatingMargin)
+        }
+    }
+
+    func fetchTTMGrossMargin(symbol: String) async throws -> [GrossMarginDataPoint] {
+        let urlString = "\(apiBaseURL)/api/gross-margin-ttm/\(symbol.uppercased())"
+        guard let url = URL(string: urlString) else {
+            throw APIError.invalidURL
+        }
+
+        let (data, _) = try await URLSession.shared.data(from: url)
+
+        struct APIGrossMarginResponse: Codable {
+            let period: String
+            let grossMargin: Double
+        }
+
+        let grossMarginData = try JSONDecoder().decode([APIGrossMarginResponse].self, from: data)
+
+        #if DEBUG
+        if !grossMarginData.isEmpty {
+            print("📊 TTM Gross Margin data for \(symbol):")
+            grossMarginData.prefix(3).forEach { item in
+                let formatted = ChartUtilities.formatQuarterDate(item.period)
+                print("  Raw: \(item.period) -> Formatted: \(formatted), Margin: \(String(format: "%.2f", item.grossMargin))%")
+            }
+        }
+        #endif
+
+        return grossMarginData.map {
+            GrossMarginDataPoint(period: $0.period, grossMargin: $0.grossMargin)
         }
     }
 
@@ -948,182 +1280,6 @@ struct OperatingIncomeChartsView: View {
 }
 
 // MARK: - Combined Gross Profit Charts View (Quarterly + TTM + YoY Growth)
-struct SharesOutstandingChartsView: View {
-    let symbol: String
-    let apiService: StockAPIService
-
-    @State private var quarterlyData: [SharesOutstandingDataPoint] = []
-    @State private var isLoading = false
-
-    // Pre-calculated table data for performance
-    struct TableRowData: Identifiable {
-        let id = UUID()
-        let period: String
-        let quarterlySharesOutstanding: Double?
-        let yoyPercent: Double?
-    }
-
-    var tableData: [TableRowData] {
-        let maxRows = min(quarterlyData.count, 40)
-        guard maxRows > 0 else { return [] }
-
-        var rows: [TableRowData] = []
-        for index in 0..<maxRows {
-            let quarterly = index < quarterlyData.count ? quarterlyData[index] : nil
-
-            // Calculate YoY using quarterly data (4 quarters ago)
-            var yoy: Double? = nil
-            if let current = quarterly,
-               index + 4 < quarterlyData.count {
-                let prior = quarterlyData[index + 4].sharesOutstanding
-                // Only calculate if prior is positive (avoid division by 0 or negative)
-                if prior > 0 {
-                    yoy = ((current.sharesOutstanding - prior) / prior) * 100
-                }
-            }
-
-            rows.append(TableRowData(
-                period: quarterly?.period ?? "",
-                quarterlySharesOutstanding: quarterly?.sharesOutstanding,
-                yoyPercent: yoy
-            ))
-        }
-        return rows
-    }
-
-    var body: some View {
-        ScrollView {
-            VStack(spacing: 0) {
-                SharesOutstandingChartView(symbol: symbol, apiService: apiService, onDataLoaded: { data in
-                    quarterlyData = data
-                })
-
-                Divider()
-                    .padding(.vertical, 20)
-
-                YoYSharesOutstandingGrowthChartView(symbol: symbol, apiService: apiService, onDataLoaded: { data in
-                    // YoY chart loads its own data
-                })
-
-                // Combined Shares Outstanding Details Table
-                if !tableData.isEmpty {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Shares Outstanding Details")
-                            .font(.headline)
-                            .padding(.horizontal)
-
-                        HStack(spacing: 0) {
-                            // Fixed Quarter Column
-                            VStack(spacing: 0) {
-                                // Header
-                                Text("Quarter")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                    .frame(width: 80, alignment: .leading)
-                                    .padding(.vertical, 8)
-
-                                Divider()
-
-                                // Quarter labels
-                                ForEach(tableData) { row in
-                                    VStack(spacing: 0) {
-                                        Text(formatDate(row.period))
-                                            .font(.caption)
-                                            .fontWeight(.medium)
-                                            .lineLimit(1)
-                                            .minimumScaleFactor(0.8)
-                                            .frame(width: 80, alignment: .leading)
-                                            .padding(.vertical, 8)
-
-                                        if row.id != tableData.last?.id {
-                                            Divider()
-                                        }
-                                    }
-                                }
-                            }
-                            .padding(.leading, 16)
-
-                            // Scrollable Data Columns
-                            ScrollView(.horizontal, showsIndicators: true) {
-                                VStack(spacing: 0) {
-                                    // Header Row
-                                    HStack(spacing: 0) {
-                                        Text("Quarterly")
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                            .frame(width: 120, alignment: .trailing)
-
-                                        Text("YoY")
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                            .frame(width: 80, alignment: .trailing)
-                                    }
-                                    .padding(.vertical, 8)
-                                    .padding(.trailing, 16)
-
-                                    Divider()
-
-                                    // Data Rows - simplified with pre-calculated values
-                                    ForEach(tableData) { row in
-                                        VStack(spacing: 0) {
-                                            HStack(spacing: 0) {
-                                                // Quarterly value
-                                                if let sharesOutstanding = row.quarterlySharesOutstanding {
-                                                    Text(formatValue(sharesOutstanding))
-                                                        .font(.caption)
-                                                        .fontWeight(.semibold)
-                                                        .foregroundStyle(sharesOutstanding >= 0 ? .blue : .red)
-                                                        .frame(width: 120, alignment: .trailing)
-                                                } else {
-                                                    Text("-")
-                                                        .font(.caption)
-                                                        .frame(width: 120, alignment: .trailing)
-                                                }
-
-                                                // YoY % value (pre-calculated)
-                                                if let yoy = row.yoyPercent {
-                                                    Text(String(format: "%+.1f%%", yoy))
-                                                        .font(.caption)
-                                                        .fontWeight(.semibold)
-                                                        .foregroundStyle(yoy >= 0 ? .green : .red)
-                                                        .frame(width: 80, alignment: .trailing)
-                                                } else {
-                                                    Text("-")
-                                                        .font(.caption)
-                                                        .frame(width: 80, alignment: .trailing)
-                                                }
-                                            }
-                                            .padding(.vertical, 8)
-                                            .padding(.trailing, 16)
-
-                                            if row.id != tableData.last?.id {
-                                                Divider()
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        .background(Color(UIColor.secondarySystemGroupedBackground))
-                        .cornerRadius(8)
-                        .padding(.horizontal, 16)
-                    }
-                    .padding(.top, 20)
-                    .padding(.bottom, 40)
-                }
-            }
-        }
-    }
-
-    private func formatDate(_ dateString: String) -> String {
-        ChartUtilities.formatQuarterDate(dateString)
-    }
-
-    private func formatValue(_ value: Double) -> String {
-        ChartUtilities.formatCurrencyValue(value)
-    }
-}
-
 struct GrossProfitChartsView: View {
     let symbol: String
     let apiService: StockAPIService
@@ -1330,6 +1486,1459 @@ struct GrossProfitChartsView: View {
     }
 }
 
+// MARK: - Combined Assets Charts View (Quarterly + YoY Growth)
+struct AssetsChartsView: View {
+    let symbol: String
+    let apiService: StockAPIService
+
+    @State private var quarterlyData: [AssetsDataPoint] = []
+    @State private var yoyData: [AssetsDataPoint] = []
+    @State private var isLoading = false
+
+    // Pre-calculated table data for performance
+    struct TableRowData: Identifiable {
+        let id = UUID()
+        let period: String
+        let quarterlyAssets: Double?
+        let yoyPercent: Double?
+    }
+
+    var tableData: [TableRowData] {
+        let maxRows = min(quarterlyData.count, 40)
+        guard maxRows > 0 else { return [] }
+
+        var rows: [TableRowData] = []
+        for index in 0..<maxRows {
+            let quarterly = index < quarterlyData.count ? quarterlyData[index] : nil
+
+            // Calculate YoY using quarterly data (4 quarters ago)
+            var yoy: Double? = nil
+            if let current = quarterly,
+               index + 4 < quarterlyData.count {
+                let prior = quarterlyData[index + 4].assets
+                // Only calculate if prior is positive (avoid division by 0 or negative)
+                if prior > 0 {
+                    yoy = ((current.assets - prior) / prior) * 100
+                }
+            }
+
+            rows.append(TableRowData(
+                period: quarterly?.period ?? "",
+                quarterlyAssets: quarterly?.assets,
+                yoyPercent: yoy
+            ))
+        }
+        return rows
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 0) {
+                AssetsChartView(symbol: symbol, apiService: apiService, onDataLoaded: { data in
+                    quarterlyData = data
+                })
+
+                Divider()
+                    .padding(.vertical, 20)
+
+                YoYAssetsGrowthChartView(symbol: symbol, apiService: apiService, onDataLoaded: { data in
+                    yoyData = data
+                })
+
+                // Combined Assets Details Table
+                if !tableData.isEmpty {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Assets Details")
+                            .font(.headline)
+                            .padding(.horizontal)
+
+                        HStack(spacing: 0) {
+                            // Fixed Quarter Column
+                            VStack(spacing: 0) {
+                                // Header
+                                Text("Quarter")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .frame(width: 80, alignment: .leading)
+                                    .padding(.vertical, 8)
+
+                                Divider()
+
+                                // Quarter labels
+                                ForEach(tableData) { row in
+                                    VStack(spacing: 0) {
+                                        Text(formatDate(row.period))
+                                            .font(.caption)
+                                            .fontWeight(.medium)
+                                            .lineLimit(1)
+                                            .minimumScaleFactor(0.8)
+                                            .frame(width: 80, alignment: .leading)
+                                            .padding(.vertical, 8)
+
+                                        if row.id != tableData.last?.id {
+                                            Divider()
+                                        }
+                                    }
+                                }
+                            }
+                            .padding(.leading, 16)
+
+                            // Scrollable Data Columns
+                            ScrollView(.horizontal, showsIndicators: true) {
+                                VStack(spacing: 0) {
+                                    // Header Row
+                                    HStack(spacing: 0) {
+                                        Text("Quarterly")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                            .frame(width: 120, alignment: .trailing)
+
+                                        Text("YoY")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                            .frame(width: 80, alignment: .trailing)
+                                    }
+                                    .padding(.vertical, 8)
+                                    .padding(.trailing, 16)
+
+                                    Divider()
+
+                                    // Data Rows - simplified with pre-calculated values
+                                    ForEach(tableData) { row in
+                                        VStack(spacing: 0) {
+                                            HStack(spacing: 0) {
+                                                // Quarterly value
+                                                if let assets = row.quarterlyAssets {
+                                                    Text(formatValue(assets))
+                                                        .font(.caption)
+                                                        .fontWeight(.semibold)
+                                                        .foregroundStyle(assets >= 0 ? .blue : .red)
+                                                        .frame(width: 120, alignment: .trailing)
+                                                } else {
+                                                    Text("-")
+                                                        .font(.caption)
+                                                        .frame(width: 120, alignment: .trailing)
+                                                }
+
+                                                // YoY % value (pre-calculated)
+                                                if let yoy = row.yoyPercent {
+                                                    Text(String(format: "%+.1f%%", yoy))
+                                                        .font(.caption)
+                                                        .fontWeight(.semibold)
+                                                        .foregroundStyle(yoy >= 0 ? .green : .red)
+                                                        .frame(width: 80, alignment: .trailing)
+                                                } else {
+                                                    Text("-")
+                                                        .font(.caption)
+                                                        .frame(width: 80, alignment: .trailing)
+                                                }
+                                            }
+                                            .padding(.vertical, 8)
+                                            .padding(.trailing, 16)
+
+                                            if row.id != tableData.last?.id {
+                                                Divider()
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        .background(Color(UIColor.secondarySystemGroupedBackground))
+                        .cornerRadius(8)
+                        .padding(.horizontal, 16)
+                    }
+                    .padding(.top, 20)
+                    .padding(.bottom, 40)
+                }
+            }
+        }
+    }
+
+    private func formatDate(_ dateString: String) -> String {
+        ChartUtilities.formatQuarterDate(dateString)
+    }
+
+    private func formatValue(_ value: Double) -> String {
+        ChartUtilities.formatCurrencyValue(value)
+    }
+}
+
+// MARK: - Combined Liabilities Charts View (Quarterly + YoY Growth)
+struct LiabilitiesChartsView: View {
+    let symbol: String
+    let apiService: StockAPIService
+
+    @State private var quarterlyData: [LiabilitiesDataPoint] = []
+    @State private var yoyData: [LiabilitiesDataPoint] = []
+    @State private var isLoading = false
+
+    // Pre-calculated table data for performance
+    struct TableRowData: Identifiable {
+        let id = UUID()
+        let period: String
+        let quarterlyLiabilities: Double?
+        let yoyPercent: Double?
+    }
+
+    var tableData: [TableRowData] {
+        let maxRows = min(quarterlyData.count, 40)
+        guard maxRows > 0 else { return [] }
+
+        var rows: [TableRowData] = []
+        for index in 0..<maxRows {
+            let quarterly = index < quarterlyData.count ? quarterlyData[index] : nil
+
+            // Calculate YoY using quarterly data (4 quarters ago)
+            var yoy: Double? = nil
+            if let current = quarterly,
+               index + 4 < quarterlyData.count {
+                let prior = quarterlyData[index + 4].liabilities
+                // Only calculate if prior is positive (avoid division by 0 or negative)
+                if prior > 0 {
+                    yoy = ((current.liabilities - prior) / prior) * 100
+                }
+            }
+
+            rows.append(TableRowData(
+                period: quarterly?.period ?? "",
+                quarterlyLiabilities: quarterly?.liabilities,
+                yoyPercent: yoy
+            ))
+        }
+        return rows
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 0) {
+                LiabilitiesChartView(symbol: symbol, apiService: apiService, onDataLoaded: { data in
+                    quarterlyData = data
+                })
+
+                Divider()
+                    .padding(.vertical, 20)
+
+                YoYLiabilitiesGrowthChartView(symbol: symbol, apiService: apiService, onDataLoaded: { data in
+                    yoyData = data
+                })
+
+                // Combined Liabilities Details Table
+                if !tableData.isEmpty {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Liabilities Details")
+                            .font(.headline)
+                            .padding(.horizontal)
+
+                        HStack(spacing: 0) {
+                            // Fixed Quarter Column
+                            VStack(spacing: 0) {
+                                // Header
+                                Text("Quarter")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .frame(width: 80, alignment: .leading)
+                                    .padding(.vertical, 8)
+
+                                Divider()
+
+                                // Quarter labels
+                                ForEach(tableData) { row in
+                                    VStack(spacing: 0) {
+                                        Text(formatDate(row.period))
+                                            .font(.caption)
+                                            .fontWeight(.medium)
+                                            .lineLimit(1)
+                                            .minimumScaleFactor(0.8)
+                                            .frame(width: 80, alignment: .leading)
+                                            .padding(.vertical, 8)
+
+                                        if row.id != tableData.last?.id {
+                                            Divider()
+                                        }
+                                    }
+                                }
+                            }
+                            .padding(.leading, 16)
+
+                            // Scrollable Data Columns
+                            ScrollView(.horizontal, showsIndicators: true) {
+                                VStack(spacing: 0) {
+                                    // Header Row
+                                    HStack(spacing: 0) {
+                                        Text("Quarterly")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                            .frame(width: 120, alignment: .trailing)
+
+                                        Text("YoY")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                            .frame(width: 80, alignment: .trailing)
+                                    }
+                                    .padding(.vertical, 8)
+                                    .padding(.trailing, 16)
+
+                                    Divider()
+
+                                    // Data Rows - simplified with pre-calculated values
+                                    ForEach(tableData) { row in
+                                        VStack(spacing: 0) {
+                                            HStack(spacing: 0) {
+                                                // Quarterly value
+                                                if let liabilities = row.quarterlyLiabilities {
+                                                    Text(formatValue(liabilities))
+                                                        .font(.caption)
+                                                        .fontWeight(.semibold)
+                                                        .foregroundStyle(liabilities >= 0 ? .blue : .red)
+                                                        .frame(width: 120, alignment: .trailing)
+                                                } else {
+                                                    Text("-")
+                                                        .font(.caption)
+                                                        .frame(width: 120, alignment: .trailing)
+                                                }
+
+                                                // YoY % value (pre-calculated)
+                                                if let yoy = row.yoyPercent {
+                                                    Text(String(format: "%+.1f%%", yoy))
+                                                        .font(.caption)
+                                                        .fontWeight(.semibold)
+                                                        .foregroundStyle(yoy >= 0 ? .green : .red)
+                                                        .frame(width: 80, alignment: .trailing)
+                                                } else {
+                                                    Text("-")
+                                                        .font(.caption)
+                                                        .frame(width: 80, alignment: .trailing)
+                                                }
+                                            }
+                                            .padding(.vertical, 8)
+                                            .padding(.trailing, 16)
+
+                                            if row.id != tableData.last?.id {
+                                                Divider()
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        .background(Color(UIColor.secondarySystemGroupedBackground))
+                        .cornerRadius(8)
+                        .padding(.horizontal, 16)
+                    }
+                    .padding(.top, 20)
+                    .padding(.bottom, 40)
+                }
+            }
+        }
+    }
+
+    private func formatDate(_ dateString: String) -> String {
+        ChartUtilities.formatQuarterDate(dateString)
+    }
+
+    private func formatValue(_ value: Double) -> String {
+        ChartUtilities.formatCurrencyValue(value)
+    }
+}
+
+// MARK: - Combined Dividends Charts View (Quarterly + YoY Growth)
+struct DividendsChartsView: View {
+    let symbol: String
+    let apiService: StockAPIService
+
+    @State private var quarterlyData: [DividendsDataPoint] = []
+    @State private var yoyData: [DividendsDataPoint] = []
+    @State private var isLoading = false
+
+    // Pre-calculated table data for performance
+    struct TableRowData: Identifiable {
+        let id = UUID()
+        let period: String
+        let quarterlyDividends: Double?
+        let yoyPercent: Double?
+    }
+
+    var tableData: [TableRowData] {
+        let maxRows = min(quarterlyData.count, 40)
+        guard maxRows > 0 else { return [] }
+
+        var rows: [TableRowData] = []
+        for index in 0..<maxRows {
+            let quarterly = index < quarterlyData.count ? quarterlyData[index] : nil
+
+            // Calculate YoY using quarterly data (4 quarters ago)
+            var yoy: Double? = nil
+            if let current = quarterly,
+               index + 4 < quarterlyData.count {
+                let prior = quarterlyData[index + 4].dividends
+                // Only calculate if prior is positive (avoid division by 0 or negative)
+                if prior > 0 {
+                    yoy = ((current.dividends - prior) / prior) * 100
+                }
+            }
+
+            rows.append(TableRowData(
+                period: quarterly?.period ?? "",
+                quarterlyDividends: quarterly?.dividends,
+                yoyPercent: yoy
+            ))
+        }
+        return rows
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 0) {
+                DividendsChartView(symbol: symbol, apiService: apiService, onDataLoaded: { data in
+                    quarterlyData = data
+                })
+
+                Divider()
+                    .padding(.vertical, 20)
+
+                YoYDividendsGrowthChartView(symbol: symbol, apiService: apiService, onDataLoaded: { data in
+                    yoyData = data
+                })
+
+                // Combined Dividends Details Table
+                if !tableData.isEmpty {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Dividends Details")
+                            .font(.headline)
+                            .padding(.horizontal)
+
+                        HStack(spacing: 0) {
+                            // Fixed Quarter Column
+                            VStack(spacing: 0) {
+                                // Header
+                                Text("Quarter")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .frame(width: 80, alignment: .leading)
+                                    .padding(.vertical, 8)
+
+                                Divider()
+
+                                // Quarter labels
+                                ForEach(tableData) { row in
+                                    VStack(spacing: 0) {
+                                        Text(formatDate(row.period))
+                                            .font(.caption)
+                                            .fontWeight(.medium)
+                                            .lineLimit(1)
+                                            .minimumScaleFactor(0.8)
+                                            .frame(width: 80, alignment: .leading)
+                                            .padding(.vertical, 8)
+
+                                        if row.id != tableData.last?.id {
+                                            Divider()
+                                        }
+                                    }
+                                }
+                            }
+                            .padding(.leading, 16)
+
+                            // Scrollable Data Columns
+                            ScrollView(.horizontal, showsIndicators: true) {
+                                VStack(spacing: 0) {
+                                    // Header Row
+                                    HStack(spacing: 0) {
+                                        Text("Quarterly")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                            .frame(width: 120, alignment: .trailing)
+
+                                        Text("YoY")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                            .frame(width: 80, alignment: .trailing)
+                                    }
+                                    .padding(.vertical, 8)
+                                    .padding(.trailing, 16)
+
+                                    Divider()
+
+                                    // Data Rows - simplified with pre-calculated values
+                                    ForEach(tableData) { row in
+                                        VStack(spacing: 0) {
+                                            HStack(spacing: 0) {
+                                                // Quarterly value
+                                                if let dividends = row.quarterlyDividends {
+                                                    Text(formatValue(dividends))
+                                                        .font(.caption)
+                                                        .fontWeight(.semibold)
+                                                        .foregroundStyle(dividends >= 0 ? .blue : .red)
+                                                        .frame(width: 120, alignment: .trailing)
+                                                } else {
+                                                    Text("-")
+                                                        .font(.caption)
+                                                        .frame(width: 120, alignment: .trailing)
+                                                }
+
+                                                // YoY % value (pre-calculated)
+                                                if let yoy = row.yoyPercent {
+                                                    Text(String(format: "%+.1f%%", yoy))
+                                                        .font(.caption)
+                                                        .fontWeight(.semibold)
+                                                        .foregroundStyle(yoy >= 0 ? .green : .red)
+                                                        .frame(width: 80, alignment: .trailing)
+                                                } else {
+                                                    Text("-")
+                                                        .font(.caption)
+                                                        .frame(width: 80, alignment: .trailing)
+                                                }
+                                            }
+                                            .padding(.vertical, 8)
+                                            .padding(.trailing, 16)
+
+                                            if row.id != tableData.last?.id {
+                                                Divider()
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        .background(Color(UIColor.secondarySystemGroupedBackground))
+                        .cornerRadius(8)
+                        .padding(.horizontal, 16)
+                    }
+                    .padding(.top, 20)
+                    .padding(.bottom, 40)
+                }
+            }
+        }
+    }
+
+    private func formatDate(_ dateString: String) -> String {
+        ChartUtilities.formatQuarterDate(dateString)
+    }
+
+    private func formatValue(_ value: Double) -> String {
+        ChartUtilities.formatCurrencyValue(value)
+    }
+}
+
+struct EBITDAChartsView: View {
+    let symbol: String
+    let apiService: StockAPIService
+
+    @State private var quarterlyData: [EBITDADataPoint] = []
+    @State private var ttmData: [EBITDADataPoint] = []
+    @State private var yoyData: [EBITDADataPoint] = []
+    @State private var isLoading = false
+
+    // Pre-calculated table data for performance
+    struct TableRowData: Identifiable {
+        let id = UUID()
+        let period: String
+        let quarterlyEBITDA: Double?
+        let ttmEBITDA: Double?
+        let yoyPercent: Double?
+    }
+
+    var tableData: [TableRowData] {
+        let maxRows = min(max(quarterlyData.count, ttmData.count), 40)
+        guard maxRows > 0 else { return [] }
+
+        var rows: [TableRowData] = []
+        for index in 0..<maxRows {
+            let quarterly = index < quarterlyData.count ? quarterlyData[index] : nil
+            let ttm = index < ttmData.count ? ttmData[index] : nil
+
+            // Calculate YoY using TTM data if possible
+            var yoy: Double? = nil
+            if let ttm = ttm,
+               index + 4 < ttmData.count {
+                let prior = ttmData[index + 4].ebitda
+                // Only calculate if prior is positive (avoid division by 0 or negative)
+                if prior > 0 {
+                    yoy = ((ttm.ebitda - prior) / prior) * 100
+                }
+            }
+
+            rows.append(TableRowData(
+                period: quarterly?.period ?? "",
+                quarterlyEBITDA: quarterly?.ebitda,
+                ttmEBITDA: ttm?.ebitda,
+                yoyPercent: yoy
+            ))
+        }
+        return rows
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 0) {
+                EBITDAChartView(symbol: symbol, apiService: apiService, onDataLoaded: { data in
+                    quarterlyData = data
+                })
+
+                Divider()
+                    .padding(.vertical, 20)
+
+                TTMEBITDAChartView(symbol: symbol, apiService: apiService, onDataLoaded: { data in
+                    ttmData = data
+                })
+
+                Divider()
+                    .padding(.vertical, 20)
+
+                YoYEBITDAGrowthChartView(symbol: symbol, apiService: apiService, onDataLoaded: { data in
+                    yoyData = data
+                })
+
+                // Combined EBITDA Details Table
+                if !tableData.isEmpty {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("EBITDA Details")
+                            .font(.headline)
+                            .padding(.horizontal)
+
+                        HStack(spacing: 0) {
+                            // Fixed Quarter Column
+                            VStack(spacing: 0) {
+                                // Header
+                                Text("Quarter")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .frame(width: 80, alignment: .leading)
+                                    .padding(.vertical, 8)
+
+                                Divider()
+
+                                // Quarter labels
+                                ForEach(tableData) { row in
+                                    VStack(spacing: 0) {
+                                        Text(formatDate(row.period))
+                                            .font(.caption)
+                                            .fontWeight(.medium)
+                                            .lineLimit(1)
+                                            .minimumScaleFactor(0.8)
+                                            .frame(width: 80, alignment: .leading)
+                                            .padding(.vertical, 8)
+
+                                        if row.id != tableData.last?.id {
+                                            Divider()
+                                        }
+                                    }
+                                }
+                            }
+                            .padding(.leading, 16)
+
+                            // Scrollable Data Columns
+                            ScrollView(.horizontal, showsIndicators: true) {
+                                VStack(spacing: 0) {
+                                    // Header Row
+                                    HStack(spacing: 0) {
+                                        Text("Quarterly")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                            .frame(width: 120, alignment: .trailing)
+
+                                        Text("TTM")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                            .frame(width: 120, alignment: .trailing)
+
+                                        Text("YoY")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                            .frame(width: 80, alignment: .trailing)
+                                    }
+                                    .padding(.vertical, 8)
+                                    .padding(.trailing, 16)
+
+                                    Divider()
+
+                                    // Data Rows - simplified with pre-calculated values
+                                    ForEach(tableData) { row in
+                                        VStack(spacing: 0) {
+                                            HStack(spacing: 0) {
+                                                // Quarterly value
+                                                if let ebitda = row.quarterlyEBITDA {
+                                                    Text(formatValue(ebitda))
+                                                        .font(.caption)
+                                                        .fontWeight(.semibold)
+                                                        .foregroundStyle(ebitda >= 0 ? .blue : .red)
+                                                        .frame(width: 120, alignment: .trailing)
+                                                } else {
+                                                    Text("-")
+                                                        .font(.caption)
+                                                        .frame(width: 120, alignment: .trailing)
+                                                }
+
+                                                // TTM value
+                                                if let ttm = row.ttmEBITDA {
+                                                    Text(formatValue(ttm))
+                                                        .font(.caption)
+                                                        .fontWeight(.semibold)
+                                                        .foregroundStyle(ttm >= 0 ? .blue : .red)
+                                                        .frame(width: 120, alignment: .trailing)
+                                                } else {
+                                                    Text("-")
+                                                        .font(.caption)
+                                                        .frame(width: 120, alignment: .trailing)
+                                                }
+
+                                                // YoY % value (pre-calculated)
+                                                if let yoy = row.yoyPercent {
+                                                    Text(String(format: "%+.1f%%", yoy))
+                                                        .font(.caption)
+                                                        .fontWeight(.semibold)
+                                                        .foregroundStyle(yoy >= 0 ? .green : .red)
+                                                        .frame(width: 80, alignment: .trailing)
+                                                } else {
+                                                    Text("-")
+                                                        .font(.caption)
+                                                        .frame(width: 80, alignment: .trailing)
+                                                }
+                                            }
+                                            .padding(.vertical, 8)
+                                            .padding(.trailing, 16)
+
+                                            if row.id != tableData.last?.id {
+                                                Divider()
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        .background(Color(UIColor.secondarySystemGroupedBackground))
+                        .cornerRadius(8)
+                        .padding(.horizontal, 16)
+                    }
+                    .padding(.top, 20)
+                    .padding(.bottom, 40)
+                }
+            }
+        }
+    }
+
+    private func formatDate(_ dateString: String) -> String {
+        ChartUtilities.formatQuarterDate(dateString)
+    }
+
+    private func formatValue(_ value: Double) -> String {
+        ChartUtilities.formatCurrencyValue(value)
+    }
+}
+
+struct FreeCashFlowChartsView: View {
+    let symbol: String
+    let apiService: StockAPIService
+
+    @State private var quarterlyData: [FreeCashFlowDataPoint] = []
+    @State private var ttmData: [FreeCashFlowDataPoint] = []
+    @State private var yoyData: [FreeCashFlowDataPoint] = []
+    @State private var isLoading = false
+
+    // Pre-calculated table data for performance
+    struct TableRowData: Identifiable {
+        let id = UUID()
+        let period: String
+        let quarterlyFCF: Double?
+        let ttmFCF: Double?
+        let yoyPercent: Double?
+    }
+
+    var tableData: [TableRowData] {
+        let maxRows = min(max(quarterlyData.count, ttmData.count), 40)
+        guard maxRows > 0 else { return [] }
+
+        var rows: [TableRowData] = []
+        for index in 0..<maxRows {
+            let quarterly = index < quarterlyData.count ? quarterlyData[index] : nil
+            let ttm = index < ttmData.count ? ttmData[index] : nil
+
+            // Calculate YoY using TTM data if possible
+            var yoy: Double? = nil
+            if let ttm = ttm,
+               index + 4 < ttmData.count {
+                let prior = ttmData[index + 4].freeCashFlow
+                // Only calculate if prior is positive (avoid division by 0 or negative)
+                if prior > 0 {
+                    yoy = ((ttm.freeCashFlow - prior) / prior) * 100
+                }
+            }
+
+            rows.append(TableRowData(
+                period: quarterly?.period ?? "",
+                quarterlyFCF: quarterly?.freeCashFlow,
+                ttmFCF: ttm?.freeCashFlow,
+                yoyPercent: yoy
+            ))
+        }
+        return rows
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 0) {
+                FreeCashFlowChartView(symbol: symbol, apiService: apiService, onDataLoaded: { data in
+                    quarterlyData = data
+                })
+
+                Divider()
+                    .padding(.vertical, 20)
+
+                TTMFreeCashFlowChartView(symbol: symbol, apiService: apiService, onDataLoaded: { data in
+                    ttmData = data
+                })
+
+                Divider()
+                    .padding(.vertical, 20)
+
+                YoYFreeCashFlowGrowthChartView(symbol: symbol, apiService: apiService, onDataLoaded: { data in
+                    yoyData = data
+                })
+
+                // Combined Free Cash Flow Details Table
+                if !tableData.isEmpty {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Free Cash Flow Details")
+                            .font(.headline)
+                            .padding(.horizontal)
+
+                        HStack(spacing: 0) {
+                            // Fixed Quarter Column
+                            VStack(spacing: 0) {
+                                // Header
+                                Text("Quarter")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .frame(width: 80, alignment: .leading)
+                                    .padding(.vertical, 8)
+
+                                Divider()
+
+                                // Quarter labels
+                                ForEach(tableData) { row in
+                                    VStack(spacing: 0) {
+                                        Text(formatDate(row.period))
+                                            .font(.caption)
+                                            .fontWeight(.medium)
+                                            .lineLimit(1)
+                                            .minimumScaleFactor(0.8)
+                                            .frame(width: 80, alignment: .leading)
+                                            .padding(.vertical, 8)
+
+                                        if row.id != tableData.last?.id {
+                                            Divider()
+                                        }
+                                    }
+                                }
+                            }
+                            .padding(.leading, 16)
+
+                            // Scrollable Data Columns
+                            ScrollView(.horizontal, showsIndicators: true) {
+                                VStack(spacing: 0) {
+                                    // Header Row
+                                    HStack(spacing: 0) {
+                                        Text("Quarterly")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                            .frame(width: 120, alignment: .trailing)
+
+                                        Text("TTM")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                            .frame(width: 120, alignment: .trailing)
+
+                                        Text("YoY")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                            .frame(width: 80, alignment: .trailing)
+                                    }
+                                    .padding(.vertical, 8)
+                                    .padding(.trailing, 16)
+
+                                    Divider()
+
+                                    // Data Rows - simplified with pre-calculated values
+                                    ForEach(tableData) { row in
+                                        VStack(spacing: 0) {
+                                            HStack(spacing: 0) {
+                                                // Quarterly value
+                                                if let fcf = row.quarterlyFCF {
+                                                    Text(formatValue(fcf))
+                                                        .font(.caption)
+                                                        .fontWeight(.semibold)
+                                                        .foregroundStyle(fcf >= 0 ? .blue : .red)
+                                                        .frame(width: 120, alignment: .trailing)
+                                                } else {
+                                                    Text("-")
+                                                        .font(.caption)
+                                                        .frame(width: 120, alignment: .trailing)
+                                                }
+
+                                                // TTM value
+                                                if let ttm = row.ttmFCF {
+                                                    Text(formatValue(ttm))
+                                                        .font(.caption)
+                                                        .fontWeight(.semibold)
+                                                        .foregroundStyle(ttm >= 0 ? .blue : .red)
+                                                        .frame(width: 120, alignment: .trailing)
+                                                } else {
+                                                    Text("-")
+                                                        .font(.caption)
+                                                        .frame(width: 120, alignment: .trailing)
+                                                }
+
+                                                // YoY % value (pre-calculated)
+                                                if let yoy = row.yoyPercent {
+                                                    Text(String(format: "%+.1f%%", yoy))
+                                                        .font(.caption)
+                                                        .fontWeight(.semibold)
+                                                        .foregroundStyle(yoy >= 0 ? .green : .red)
+                                                        .frame(width: 80, alignment: .trailing)
+                                                } else {
+                                                    Text("-")
+                                                        .font(.caption)
+                                                        .frame(width: 80, alignment: .trailing)
+                                                }
+                                            }
+                                            .padding(.vertical, 8)
+                                            .padding(.trailing, 16)
+
+                                            if row.id != tableData.last?.id {
+                                                Divider()
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        .background(Color(UIColor.secondarySystemGroupedBackground))
+                        .cornerRadius(8)
+                        .padding(.horizontal, 16)
+                    }
+                    .padding(.top, 20)
+                    .padding(.bottom, 40)
+                }
+            }
+        }
+    }
+
+    private func formatDate(_ dateString: String) -> String {
+        ChartUtilities.formatQuarterDate(dateString)
+    }
+
+    private func formatValue(_ value: Double) -> String {
+        ChartUtilities.formatCurrencyValue(value)
+    }
+}
+
+struct NetMarginChartsView: View {
+    let symbol: String
+    let apiService: StockAPIService
+
+    @State private var ttmData: [NetMarginDataPoint] = []
+    @State private var isLoading = false
+
+    // Pre-calculated table data for performance
+    struct TableRowData: Identifiable {
+        let id = UUID()
+        let period: String
+        let ttmNetMargin: Double?
+        let yoyPercent: Double?
+    }
+
+    var tableData: [TableRowData] {
+        let maxRows = min(ttmData.count, 37)
+        guard maxRows > 0 else { return [] }
+
+        var rows: [TableRowData] = []
+        for index in 0..<maxRows {
+            let ttm = index < ttmData.count ? ttmData[index] : nil
+
+            // Calculate YoY using TTM data
+            var yoy: Double? = nil
+            if let ttm = ttm,
+               index + 4 < ttmData.count {
+                let prior = ttmData[index + 4].netMargin
+                // Net margin can be negative, so we calculate change differently
+                // YoY shows percentage change in the margin value
+                yoy = ((ttm.netMargin - prior) / abs(prior)) * 100
+            }
+
+            rows.append(TableRowData(
+                period: ttm?.period ?? "",
+                ttmNetMargin: ttm?.netMargin,
+                yoyPercent: yoy
+            ))
+        }
+        return rows
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 0) {
+                NetMarginChartView(symbol: symbol, apiService: apiService, onDataLoaded: { data in
+                    ttmData = data
+                })
+
+                Divider()
+                    .padding(.vertical, 20)
+
+                YoYNetMarginGrowthChartView(symbol: symbol, apiService: apiService, onDataLoaded: { _ in })
+
+                // Combined Net Margin Details Table
+                if !tableData.isEmpty {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Net Margin Details")
+                            .font(.headline)
+                            .padding(.horizontal)
+
+                        HStack(spacing: 0) {
+                            // Fixed Quarter Column
+                            VStack(spacing: 0) {
+                                // Header
+                                Text("Quarter")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .frame(width: 80, alignment: .leading)
+                                    .padding(.vertical, 8)
+
+                                Divider()
+
+                                // Quarter labels
+                                ForEach(tableData) { row in
+                                    VStack(spacing: 0) {
+                                        Text(formatDate(row.period))
+                                            .font(.caption)
+                                            .fontWeight(.medium)
+                                            .lineLimit(1)
+                                            .minimumScaleFactor(0.8)
+                                            .frame(width: 80, alignment: .leading)
+                                            .padding(.vertical, 8)
+
+                                        if row.id != tableData.last?.id {
+                                            Divider()
+                                        }
+                                    }
+                                }
+                            }
+                            .padding(.leading, 16)
+
+                            // Scrollable Data Columns
+                            ScrollView(.horizontal, showsIndicators: true) {
+                                VStack(spacing: 0) {
+                                    // Header Row
+                                    HStack(spacing: 0) {
+                                        Text("TTM Net Margin")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                            .frame(width: 120, alignment: .trailing)
+
+                                        Text("YoY")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                            .frame(width: 80, alignment: .trailing)
+                                    }
+                                    .padding(.vertical, 8)
+                                    .padding(.trailing, 16)
+
+                                    Divider()
+
+                                    // Data Rows - simplified with pre-calculated values
+                                    ForEach(tableData) { row in
+                                        VStack(spacing: 0) {
+                                            HStack(spacing: 0) {
+                                                // TTM net margin value (percentage)
+                                                if let margin = row.ttmNetMargin {
+                                                    Text(String(format: "%.2f%%", margin))
+                                                        .font(.caption)
+                                                        .fontWeight(.semibold)
+                                                        .foregroundStyle(margin >= 0 ? .blue : .red)
+                                                        .frame(width: 120, alignment: .trailing)
+                                                } else {
+                                                    Text("-")
+                                                        .font(.caption)
+                                                        .frame(width: 120, alignment: .trailing)
+                                                }
+
+                                                // YoY % value (pre-calculated)
+                                                if let yoy = row.yoyPercent {
+                                                    Text(String(format: "%+.1f%%", yoy))
+                                                        .font(.caption)
+                                                        .fontWeight(.semibold)
+                                                        .foregroundStyle(yoy >= 0 ? .green : .red)
+                                                        .frame(width: 80, alignment: .trailing)
+                                                } else {
+                                                    Text("-")
+                                                        .font(.caption)
+                                                        .frame(width: 80, alignment: .trailing)
+                                                }
+                                            }
+                                            .padding(.vertical, 8)
+                                            .padding(.trailing, 16)
+
+                                            if row.id != tableData.last?.id {
+                                                Divider()
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        .background(Color(UIColor.secondarySystemGroupedBackground))
+                        .cornerRadius(8)
+                        .padding(.horizontal, 16)
+                    }
+                    .padding(.top, 20)
+                    .padding(.bottom, 40)
+                }
+            }
+        }
+    }
+
+    private func formatDate(_ dateString: String) -> String {
+        ChartUtilities.formatQuarterDate(dateString)
+    }
+}
+
+struct OperatingMarginChartsView: View {
+    let symbol: String
+    let apiService: StockAPIService
+
+    @State private var ttmData: [OperatingMarginDataPoint] = []
+    @State private var isLoading = false
+
+    // Pre-calculated table data for performance
+    struct TableRowData: Identifiable {
+        let id = UUID()
+        let period: String
+        let ttmOperatingMargin: Double?
+        let yoyPercent: Double?
+    }
+
+    var tableData: [TableRowData] {
+        let maxRows = min(ttmData.count, 37)
+        guard maxRows > 0 else { return [] }
+
+        var rows: [TableRowData] = []
+        for index in 0..<maxRows {
+            let ttm = index < ttmData.count ? ttmData[index] : nil
+
+            // Calculate YoY using TTM data
+            var yoy: Double? = nil
+            if let ttm = ttm,
+               index + 4 < ttmData.count {
+                let prior = ttmData[index + 4].operatingMargin
+                // Operating margin can be negative, so we calculate change differently
+                // YoY shows percentage change in the margin value
+                yoy = ((ttm.operatingMargin - prior) / abs(prior)) * 100
+            }
+
+            rows.append(TableRowData(
+                period: ttm?.period ?? "",
+                ttmOperatingMargin: ttm?.operatingMargin,
+                yoyPercent: yoy
+            ))
+        }
+        return rows
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 0) {
+                OperatingMarginChartView(symbol: symbol, apiService: apiService, onDataLoaded: { data in
+                    ttmData = data
+                })
+
+                Divider()
+                    .padding(.vertical, 20)
+
+                YoYOperatingMarginGrowthChartView(symbol: symbol, apiService: apiService, onDataLoaded: { _ in })
+
+                // Combined Operating Margin Details Table
+                if !tableData.isEmpty {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Operating Margin Details")
+                            .font(.headline)
+                            .padding(.horizontal)
+
+                        HStack(spacing: 0) {
+                            // Fixed Quarter Column
+                            VStack(spacing: 0) {
+                                // Header
+                                Text("Quarter")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .frame(width: 80, alignment: .leading)
+                                    .padding(.vertical, 8)
+
+                                Divider()
+
+                                // Quarter labels
+                                ForEach(tableData) { row in
+                                    VStack(spacing: 0) {
+                                        Text(formatDate(row.period))
+                                            .font(.caption)
+                                            .fontWeight(.medium)
+                                            .lineLimit(1)
+                                            .minimumScaleFactor(0.8)
+                                            .frame(width: 80, alignment: .leading)
+                                            .padding(.vertical, 8)
+
+                                        if row.id != tableData.last?.id {
+                                            Divider()
+                                        }
+                                    }
+                                }
+                            }
+                            .padding(.leading, 16)
+
+                            // Scrollable Data Columns
+                            ScrollView(.horizontal, showsIndicators: true) {
+                                VStack(spacing: 0) {
+                                    // Header Row
+                                    HStack(spacing: 0) {
+                                        Text("TTM Operating Margin")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                            .frame(width: 150, alignment: .trailing)
+
+                                        Text("YoY")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                            .frame(width: 80, alignment: .trailing)
+                                    }
+                                    .padding(.vertical, 8)
+                                    .padding(.trailing, 16)
+
+                                    Divider()
+
+                                    // Data Rows - simplified with pre-calculated values
+                                    ForEach(tableData) { row in
+                                        VStack(spacing: 0) {
+                                            HStack(spacing: 0) {
+                                                // TTM operating margin value (percentage)
+                                                if let margin = row.ttmOperatingMargin {
+                                                    Text(String(format: "%.2f%%", margin))
+                                                        .font(.caption)
+                                                        .fontWeight(.semibold)
+                                                        .foregroundStyle(margin >= 0 ? .blue : .red)
+                                                        .frame(width: 150, alignment: .trailing)
+                                                } else {
+                                                    Text("-")
+                                                        .font(.caption)
+                                                        .frame(width: 150, alignment: .trailing)
+                                                }
+
+                                                // YoY % value (pre-calculated)
+                                                if let yoy = row.yoyPercent {
+                                                    Text(String(format: "%+.1f%%", yoy))
+                                                        .font(.caption)
+                                                        .fontWeight(.semibold)
+                                                        .foregroundStyle(yoy >= 0 ? .green : .red)
+                                                        .frame(width: 80, alignment: .trailing)
+                                                } else {
+                                                    Text("-")
+                                                        .font(.caption)
+                                                        .frame(width: 80, alignment: .trailing)
+                                                }
+                                            }
+                                            .padding(.vertical, 8)
+                                            .padding(.trailing, 16)
+
+                                            if row.id != tableData.last?.id {
+                                                Divider()
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        .background(Color(UIColor.secondarySystemGroupedBackground))
+                        .cornerRadius(8)
+                        .padding(.horizontal, 16)
+                    }
+                    .padding(.top, 20)
+                    .padding(.bottom, 40)
+                }
+            }
+        }
+    }
+
+    private func formatDate(_ dateString: String) -> String {
+        ChartUtilities.formatQuarterDate(dateString)
+    }
+}
+
+struct GrossMarginChartsView: View {
+    let symbol: String
+    let apiService: StockAPIService
+
+    @State private var ttmData: [GrossMarginDataPoint] = []
+    @State private var isLoading = false
+
+    // Pre-calculated table data for performance
+    struct TableRowData: Identifiable {
+        let id = UUID()
+        let period: String
+        let ttmGrossMargin: Double?
+        let yoyPercent: Double?
+    }
+
+    var tableData: [TableRowData] {
+        let maxRows = min(ttmData.count, 37)
+        guard maxRows > 0 else { return [] }
+
+        var rows: [TableRowData] = []
+        for index in 0..<maxRows {
+            let ttm = index < ttmData.count ? ttmData[index] : nil
+
+            // Calculate YoY using TTM data
+            var yoy: Double? = nil
+            if let ttm = ttm,
+               index + 4 < ttmData.count {
+                let prior = ttmData[index + 4].grossMargin
+                // Gross margin can be negative, so we calculate change differently
+                // YoY shows percentage change in the margin value
+                yoy = ((ttm.grossMargin - prior) / abs(prior)) * 100
+            }
+
+            rows.append(TableRowData(
+                period: ttm?.period ?? "",
+                ttmGrossMargin: ttm?.grossMargin,
+                yoyPercent: yoy
+            ))
+        }
+        return rows
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 0) {
+                GrossMarginChartView(symbol: symbol, apiService: apiService, onDataLoaded: { data in
+                    ttmData = data
+                })
+
+                Divider()
+                    .padding(.vertical, 20)
+
+                YoYGrossMarginGrowthChartView(symbol: symbol, apiService: apiService, onDataLoaded: { _ in })
+
+                // Combined Gross Margin Details Table
+                if !tableData.isEmpty {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Gross Margin Details")
+                            .font(.headline)
+                            .padding(.horizontal)
+
+                        HStack(spacing: 0) {
+                            // Fixed Quarter Column
+                            VStack(spacing: 0) {
+                                // Header
+                                Text("Quarter")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .frame(width: 80, alignment: .leading)
+                                    .padding(.vertical, 8)
+
+                                Divider()
+
+                                // Quarter labels
+                                ForEach(tableData) { row in
+                                    VStack(spacing: 0) {
+                                        Text(formatDate(row.period))
+                                            .font(.caption)
+                                            .fontWeight(.medium)
+                                            .lineLimit(1)
+                                            .minimumScaleFactor(0.8)
+                                            .frame(width: 80, alignment: .leading)
+                                            .padding(.vertical, 8)
+
+                                        if row.id != tableData.last?.id {
+                                            Divider()
+                                        }
+                                    }
+                                }
+                            }
+                            .padding(.leading, 16)
+
+                            // Scrollable Data Columns
+                            ScrollView(.horizontal, showsIndicators: true) {
+                                VStack(spacing: 0) {
+                                    // Header Row
+                                    HStack(spacing: 0) {
+                                        Text("TTM Gross Margin")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                            .frame(width: 140, alignment: .trailing)
+
+                                        Text("YoY")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                            .frame(width: 80, alignment: .trailing)
+                                    }
+                                    .padding(.vertical, 8)
+                                    .padding(.trailing, 16)
+
+                                    Divider()
+
+                                    // Data Rows - simplified with pre-calculated values
+                                    ForEach(tableData) { row in
+                                        VStack(spacing: 0) {
+                                            HStack(spacing: 0) {
+                                                // TTM gross margin value (percentage)
+                                                if let margin = row.ttmGrossMargin {
+                                                    Text(String(format: "%.2f%%", margin))
+                                                        .font(.caption)
+                                                        .fontWeight(.semibold)
+                                                        .foregroundStyle(margin >= 0 ? .blue : .red)
+                                                        .frame(width: 140, alignment: .trailing)
+                                                } else {
+                                                    Text("-")
+                                                        .font(.caption)
+                                                        .frame(width: 140, alignment: .trailing)
+                                                }
+
+                                                // YoY % value (pre-calculated)
+                                                if let yoy = row.yoyPercent {
+                                                    Text(String(format: "%+.1f%%", yoy))
+                                                        .font(.caption)
+                                                        .fontWeight(.semibold)
+                                                        .foregroundStyle(yoy >= 0 ? .green : .red)
+                                                        .frame(width: 80, alignment: .trailing)
+                                                } else {
+                                                    Text("-")
+                                                        .font(.caption)
+                                                        .frame(width: 80, alignment: .trailing)
+                                                }
+                                            }
+                                            .padding(.vertical, 8)
+                                            .padding(.trailing, 16)
+
+                                            if row.id != tableData.last?.id {
+                                                Divider()
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        .background(Color(UIColor.secondarySystemGroupedBackground))
+                        .cornerRadius(8)
+                        .padding(.horizontal, 16)
+                    }
+                    .padding(.top, 20)
+                    .padding(.bottom, 40)
+                }
+            }
+        }
+    }
+
+    private func formatDate(_ dateString: String) -> String {
+        ChartUtilities.formatQuarterDate(dateString)
+    }
+}
+
 // MARK: - App Data Models
 
 struct StockProfile: Codable {
@@ -1403,27 +3012,195 @@ struct GrossProfitDataPoint: Identifiable, Codable {
     }
 }
 
-struct SharesOutstandingDataPoint: Identifiable, Codable {
+struct AssetsDataPoint: Identifiable, Codable {
     let id: UUID
     let period: String
-    let sharesOutstanding: Double
+    let assets: Double
 
     enum CodingKeys: String, CodingKey {
         case period
-        case sharesOutstanding
+        case assets
     }
 
-    init(period: String, sharesOutstanding: Double) {
+    init(period: String, assets: Double) {
         self.id = UUID()
         self.period = period
-        self.sharesOutstanding = sharesOutstanding
+        self.assets = assets
     }
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.id = UUID()
         self.period = try container.decode(String.self, forKey: .period)
-        self.sharesOutstanding = try container.decode(Double.self, forKey: .sharesOutstanding)
+        self.assets = try container.decode(Double.self, forKey: .assets)
+    }
+}
+
+struct LiabilitiesDataPoint: Identifiable, Codable {
+    let id: UUID
+    let period: String
+    let liabilities: Double
+
+    enum CodingKeys: String, CodingKey {
+        case period
+        case liabilities
+    }
+
+    init(period: String, liabilities: Double) {
+        self.id = UUID()
+        self.period = period
+        self.liabilities = liabilities
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = UUID()
+        self.period = try container.decode(String.self, forKey: .period)
+        self.liabilities = try container.decode(Double.self, forKey: .liabilities)
+    }
+}
+
+struct DividendsDataPoint: Identifiable, Codable {
+    let id: UUID
+    let period: String
+    let dividends: Double
+
+    enum CodingKeys: String, CodingKey {
+        case period
+        case dividends
+    }
+
+    init(period: String, dividends: Double) {
+        self.id = UUID()
+        self.period = period
+        self.dividends = dividends
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = UUID()
+        self.period = try container.decode(String.self, forKey: .period)
+        self.dividends = try container.decode(Double.self, forKey: .dividends)
+    }
+}
+
+struct EBITDADataPoint: Identifiable, Codable {
+    let id: UUID
+    let period: String
+    let ebitda: Double
+
+    enum CodingKeys: String, CodingKey {
+        case period
+        case ebitda
+    }
+
+    init(period: String, ebitda: Double) {
+        self.id = UUID()
+        self.period = period
+        self.ebitda = ebitda
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = UUID()
+        self.period = try container.decode(String.self, forKey: .period)
+        self.ebitda = try container.decode(Double.self, forKey: .ebitda)
+    }
+}
+
+struct FreeCashFlowDataPoint: Identifiable, Codable {
+    let id: UUID
+    let period: String
+    let freeCashFlow: Double
+
+    enum CodingKeys: String, CodingKey {
+        case period
+        case freeCashFlow
+    }
+
+    init(period: String, freeCashFlow: Double) {
+        self.id = UUID()
+        self.period = period
+        self.freeCashFlow = freeCashFlow
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = UUID()
+        self.period = try container.decode(String.self, forKey: .period)
+        self.freeCashFlow = try container.decode(Double.self, forKey: .freeCashFlow)
+    }
+}
+
+struct NetMarginDataPoint: Identifiable, Codable {
+    let id: UUID
+    let period: String
+    let netMargin: Double
+
+    enum CodingKeys: String, CodingKey {
+        case period
+        case netMargin
+    }
+
+    init(period: String, netMargin: Double) {
+        self.id = UUID()
+        self.period = period
+        self.netMargin = netMargin
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = UUID()
+        self.period = try container.decode(String.self, forKey: .period)
+        self.netMargin = try container.decode(Double.self, forKey: .netMargin)
+    }
+}
+
+struct OperatingMarginDataPoint: Identifiable, Codable {
+    let id: UUID
+    let period: String
+    let operatingMargin: Double
+
+    enum CodingKeys: String, CodingKey {
+        case period
+        case operatingMargin
+    }
+
+    init(period: String, operatingMargin: Double) {
+        self.id = UUID()
+        self.period = period
+        self.operatingMargin = operatingMargin
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = UUID()
+        self.period = try container.decode(String.self, forKey: .period)
+        self.operatingMargin = try container.decode(Double.self, forKey: .operatingMargin)
+    }
+}
+
+struct GrossMarginDataPoint: Identifiable, Codable {
+    let id: UUID
+    let period: String
+    let grossMargin: Double
+
+    enum CodingKeys: String, CodingKey {
+        case period
+        case grossMargin
+    }
+
+    init(period: String, grossMargin: Double) {
+        self.id = UUID()
+        self.period = period
+        self.grossMargin = grossMargin
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = UUID()
+        self.period = try container.decode(String.self, forKey: .period)
+        self.grossMargin = try container.decode(Double.self, forKey: .grossMargin)
     }
 }
 
@@ -2224,14 +4001,70 @@ struct StockDetailView: View {
 
                 Button(action: { selectedTab = 5 }) {
                     if selectedTab == 5 {
-                        Label("Shares Outstanding", systemImage: "checkmark")
+                        Label("Assets", systemImage: "checkmark")
                     } else {
-                        Text("Shares Outstanding")
+                        Text("Assets")
+                    }
+                }
+
+                Button(action: { selectedTab = 6 }) {
+                    if selectedTab == 6 {
+                        Label("Liabilities", systemImage: "checkmark")
+                    } else {
+                        Text("Liabilities")
+                    }
+                }
+
+                Button(action: { selectedTab = 7 }) {
+                    if selectedTab == 7 {
+                        Label("Dividends", systemImage: "checkmark")
+                    } else {
+                        Text("Dividends")
+                    }
+                }
+
+                Button(action: { selectedTab = 8 }) {
+                    if selectedTab == 8 {
+                        Label("EBITDA", systemImage: "checkmark")
+                    } else {
+                        Text("EBITDA")
+                    }
+                }
+
+                Button(action: { selectedTab = 9 }) {
+                    if selectedTab == 9 {
+                        Label("Free Cash Flow", systemImage: "checkmark")
+                    } else {
+                        Text("Free Cash Flow")
+                    }
+                }
+
+                Button(action: { selectedTab = 10 }) {
+                    if selectedTab == 10 {
+                        Label("Net Margins", systemImage: "checkmark")
+                    } else {
+                        Text("Net Margins")
+                    }
+                }
+
+                Button(action: { selectedTab = 11 }) {
+                    if selectedTab == 11 {
+                        Label("Operating Margins", systemImage: "checkmark")
+                    } else {
+                        Text("Operating Margins")
+                    }
+                }
+
+                Button(action: { selectedTab = 12 }) {
+                    if selectedTab == 12 {
+                        Label("Gross Margins", systemImage: "checkmark")
+                    } else {
+                        Text("Gross Margins")
                     }
                 }
             } label: {
                 HStack {
-                    Text(selectedTab == 0 ? "Overview" : selectedTab == 1 ? "Revenue" : selectedTab == 2 ? "Net Income" : selectedTab == 3 ? "Operating Income" : selectedTab == 4 ? "Gross Profit" : "Shares Outstanding")
+                    Text(selectedTab == 0 ? "Overview" : selectedTab == 1 ? "Revenue" : selectedTab == 2 ? "Net Income" : selectedTab == 3 ? "Operating Income" : selectedTab == 4 ? "Gross Profit" : selectedTab == 5 ? "Assets" : selectedTab == 6 ? "Liabilities" : selectedTab == 7 ? "Dividends" : selectedTab == 8 ? "EBITDA" : selectedTab == 9 ? "Free Cash Flow" : selectedTab == 10 ? "Net Margins" : selectedTab == 11 ? "Operating Margins" : "Gross Margins")
                         .fontWeight(.semibold)
                     Image(systemName: "chevron.down")
                         .font(.caption)
@@ -2286,9 +4119,37 @@ struct StockDetailView: View {
                     // Gross Profit
                     GrossProfitChartsView(symbol: item.symbol, apiService: apiService)
                         .padding(.bottom, 40)
-                } else {
-                    // Shares Outstanding
-                    SharesOutstandingChartsView(symbol: item.symbol, apiService: apiService)
+                } else if selectedTab == 5 {
+                    // Assets
+                    AssetsChartsView(symbol: item.symbol, apiService: apiService)
+                        .padding(.bottom, 40)
+                } else if selectedTab == 6 {
+                    // Liabilities
+                    LiabilitiesChartsView(symbol: item.symbol, apiService: apiService)
+                        .padding(.bottom, 40)
+                } else if selectedTab == 7 {
+                    // Dividends
+                    DividendsChartsView(symbol: item.symbol, apiService: apiService)
+                        .padding(.bottom, 40)
+                } else if selectedTab == 8 {
+                    // EBITDA
+                    EBITDAChartsView(symbol: item.symbol, apiService: apiService)
+                        .padding(.bottom, 40)
+                } else if selectedTab == 9 {
+                    // Free Cash Flow
+                    FreeCashFlowChartsView(symbol: item.symbol, apiService: apiService)
+                        .padding(.bottom, 40)
+                } else if selectedTab == 10 {
+                    // Net Margins
+                    NetMarginChartsView(symbol: item.symbol, apiService: apiService)
+                        .padding(.bottom, 40)
+                } else if selectedTab == 11 {
+                    // Operating Margins
+                    OperatingMarginChartsView(symbol: item.symbol, apiService: apiService)
+                        .padding(.bottom, 40)
+                } else if selectedTab == 12 {
+                    // Gross Margins
+                    GrossMarginChartsView(symbol: item.symbol, apiService: apiService)
                         .padding(.bottom, 40)
                 }
             }

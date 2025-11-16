@@ -49,10 +49,32 @@ export default {
         return await handleTTMGrossProfit(request, env, url);
       } else if (url.pathname.startsWith('/api/gross-profit/')) {
         return await handleGrossProfit(request, env, url);
-      } else if (url.pathname.startsWith('/api/shares-outstanding-ttm/')) {
-        return await handleTTMSharesOutstanding(request, env, url);
-      } else if (url.pathname.startsWith('/api/shares-outstanding/')) {
-        return await handleSharesOutstanding(request, env, url);
+      } else if (url.pathname.startsWith('/api/assets-ttm/')) {
+        return await handleTTMAssets(request, env, url);
+      } else if (url.pathname.startsWith('/api/assets/')) {
+        return await handleAssets(request, env, url);
+      } else if (url.pathname.startsWith('/api/liabilities/')) {
+        return await handleLiabilities(request, env, url);
+      } else if (url.pathname.startsWith('/api/dividends/')) {
+        return await handleDividends(request, env, url);
+      } else if (url.pathname.startsWith('/api/ebitda-ttm/')) {
+        return await handleTTMEBITDA(request, env, url);
+      } else if (url.pathname.startsWith('/api/ebitda/')) {
+        return await handleEBITDA(request, env, url);
+      } else if (url.pathname.startsWith('/api/free-cash-flow-ttm/')) {
+        return await handleTTMFreeCashFlow(request, env, url);
+      } else if (url.pathname.startsWith('/api/free-cash-flow/')) {
+        return await handleFreeCashFlow(request, env, url);
+      } else if (url.pathname.startsWith('/api/net-margin-ttm/')) {
+        return await handleTTMNetMargin(request, env, url);
+      } else if (url.pathname.startsWith('/api/net-margin/')) {
+        return await handleNetMargin(request, env, url);
+      } else if (url.pathname.startsWith('/api/operating-margin-ttm/')) {
+        return await handleTTMOperatingMargin(request, env, url);
+      } else if (url.pathname.startsWith('/api/operating-margin/')) {
+        return await handleOperatingMargin(request, env, url);
+      } else if (url.pathname.startsWith('/api/gross-margin-ttm/')) {
+        return await handleTTMGrossMargin(request, env, url);
       } else if (url.pathname === '/api/tickers') {
         return await handleTickers(request, env);
       } else if (url.pathname === '/api/health') {
@@ -229,38 +251,260 @@ async function handleTTMGrossProfit(request, env, url) {
 }
 
 /**
- * Handle quarterly shares outstanding from SEC EDGAR
- * GET /api/shares-outstanding/:symbol
+ * Handle quarterly assets from SEC EDGAR
+ * GET /api/assets/:symbol
  */
-async function handleSharesOutstanding(request, env, url) {
+async function handleAssets(request, env, url) {
   const symbol = url.pathname.split('/').pop().toUpperCase();
+
   if (!symbol) {
     return jsonResponse({ error: 'Symbol required' }, 400);
   }
 
   try {
     const facts = await getCompanyFacts(symbol, env);
-    const sharesOutstanding = extractSharesOutstanding(facts);
-    return jsonResponse(sharesOutstanding);
+    const assets = extractAssets(facts);
+    return jsonResponse(assets);
   } catch (error) {
     return jsonResponse({ error: error.message }, 404);
   }
 }
 
 /**
- * Handle TTM shares outstanding from SEC EDGAR
- * GET /api/shares-outstanding-ttm/:symbol
+ * Handle TTM assets from SEC EDGAR
+ * GET /api/assets-ttm/:symbol
  */
-async function handleTTMSharesOutstanding(request, env, url) {
+async function handleTTMAssets(request, env, url) {
   const symbol = url.pathname.split('/').pop().toUpperCase();
+
   if (!symbol) {
     return jsonResponse({ error: 'Symbol required' }, 400);
   }
 
   try {
     const facts = await getCompanyFacts(symbol, env);
-    const sharesOutstanding = extractTTMSharesOutstanding(facts);
-    return jsonResponse(sharesOutstanding);
+    const assets = extractTTMAssets(facts);
+    return jsonResponse(assets);
+  } catch (error) {
+    return jsonResponse({ error: error.message }, 404);
+  }
+}
+
+/**
+ * Handle quarterly liabilities from SEC EDGAR
+ * GET /api/liabilities/:symbol
+ */
+async function handleLiabilities(request, env, url) {
+  const symbol = url.pathname.split('/').pop().toUpperCase();
+
+  if (!symbol) {
+    return jsonResponse({ error: 'Symbol required' }, 400);
+  }
+
+  try {
+    const facts = await getCompanyFacts(symbol, env);
+    const liabilities = extractLiabilities(facts);
+    return jsonResponse(liabilities);
+  } catch (error) {
+    return jsonResponse({ error: error.message }, 404);
+  }
+}
+
+/**
+ * Handle quarterly dividends from SEC EDGAR
+ * GET /api/dividends/:symbol
+ */
+async function handleDividends(request, env, url) {
+  const symbol = url.pathname.split('/').pop().toUpperCase();
+
+  if (!symbol) {
+    return jsonResponse({ error: 'Symbol required' }, 400);
+  }
+
+  try {
+    const facts = await getCompanyFacts(symbol, env);
+    const dividends = extractDividends(facts);
+    return jsonResponse(dividends);
+  } catch (error) {
+    return jsonResponse({ error: error.message }, 404);
+  }
+}
+
+/**
+ * Handle quarterly EBITDA from SEC EDGAR
+ * GET /api/ebitda/:symbol
+ */
+async function handleEBITDA(request, env, url) {
+  const symbol = url.pathname.split('/').pop().toUpperCase();
+
+  if (!symbol) {
+    return jsonResponse({ error: 'Symbol required' }, 400);
+  }
+
+  try {
+    const facts = await getCompanyFacts(symbol, env);
+    const ebitda = extractEBITDA(facts);
+    return jsonResponse(ebitda);
+  } catch (error) {
+    return jsonResponse({ error: error.message }, 404);
+  }
+}
+
+/**
+ * Handle TTM EBITDA from SEC EDGAR
+ * GET /api/ebitda-ttm/:symbol
+ */
+async function handleTTMEBITDA(request, env, url) {
+  const symbol = url.pathname.split('/').pop().toUpperCase();
+
+  if (!symbol) {
+    return jsonResponse({ error: 'Symbol required' }, 400);
+  }
+
+  try {
+    const facts = await getCompanyFacts(symbol, env);
+    const ebitda = extractTTMEBITDA(facts);
+    return jsonResponse(ebitda);
+  } catch (error) {
+    return jsonResponse({ error: error.message }, 404);
+  }
+}
+
+/**
+ * Handle quarterly Free Cash Flow from SEC EDGAR
+ * GET /api/free-cash-flow/:symbol
+ */
+async function handleFreeCashFlow(request, env, url) {
+  const symbol = url.pathname.split('/').pop().toUpperCase();
+
+  if (!symbol) {
+    return jsonResponse({ error: 'Symbol required' }, 400);
+  }
+
+  try {
+    const facts = await getCompanyFacts(symbol, env);
+    const fcf = extractFreeCashFlow(facts);
+    return jsonResponse(fcf);
+  } catch (error) {
+    return jsonResponse({ error: error.message }, 404);
+  }
+}
+
+/**
+ * Handle TTM Free Cash Flow from SEC EDGAR
+ * GET /api/free-cash-flow-ttm/:symbol
+ */
+async function handleTTMFreeCashFlow(request, env, url) {
+  const symbol = url.pathname.split('/').pop().toUpperCase();
+
+  if (!symbol) {
+    return jsonResponse({ error: 'Symbol required' }, 400);
+  }
+
+  try {
+    const facts = await getCompanyFacts(symbol, env);
+    const fcf = extractTTMFreeCashFlow(facts);
+    return jsonResponse(fcf);
+  } catch (error) {
+    return jsonResponse({ error: error.message }, 404);
+  }
+}
+
+/**
+ * Handle quarterly net margin from SEC EDGAR
+ * GET /api/net-margin/:symbol
+ */
+async function handleNetMargin(request, env, url) {
+  const symbol = url.pathname.split('/').pop().toUpperCase();
+
+  if (!symbol) {
+    return jsonResponse({ error: 'Symbol required' }, 400);
+  }
+
+  try {
+    const facts = await getCompanyFacts(symbol, env);
+    const netMargin = extractNetMargin(facts);
+    return jsonResponse(netMargin);
+  } catch (error) {
+    return jsonResponse({ error: error.message }, 404);
+  }
+}
+
+/**
+ * Handle quarterly operating margin from SEC EDGAR
+ * GET /api/operating-margin/:symbol
+ */
+async function handleOperatingMargin(request, env, url) {
+  const symbol = url.pathname.split('/').pop().toUpperCase();
+
+  if (!symbol) {
+    return jsonResponse({ error: 'Symbol required' }, 400);
+  }
+
+  try {
+    const facts = await getCompanyFacts(symbol, env);
+    const operatingMargin = extractOperatingMargin(facts);
+    return jsonResponse(operatingMargin);
+  } catch (error) {
+    return jsonResponse({ error: error.message }, 404);
+  }
+}
+
+/**
+ * Handle TTM net margin from SEC EDGAR
+ * GET /api/net-margin-ttm/:symbol
+ */
+async function handleTTMNetMargin(request, env, url) {
+  const symbol = url.pathname.split('/').pop().toUpperCase();
+
+  if (!symbol) {
+    return jsonResponse({ error: 'Symbol required' }, 400);
+  }
+
+  try {
+    const facts = await getCompanyFacts(symbol, env);
+    const netMargin = extractTTMNetMargin(facts);
+    return jsonResponse(netMargin);
+  } catch (error) {
+    return jsonResponse({ error: error.message }, 404);
+  }
+}
+
+/**
+ * Handle TTM operating margin from SEC EDGAR
+ * GET /api/operating-margin-ttm/:symbol
+ */
+async function handleTTMOperatingMargin(request, env, url) {
+  const symbol = url.pathname.split('/').pop().toUpperCase();
+
+  if (!symbol) {
+    return jsonResponse({ error: 'Symbol required' }, 400);
+  }
+
+  try {
+    const facts = await getCompanyFacts(symbol, env);
+    const operatingMargin = extractTTMOperatingMargin(facts);
+    return jsonResponse(operatingMargin);
+  } catch (error) {
+    return jsonResponse({ error: error.message }, 404);
+  }
+}
+
+/**
+ * Handle TTM gross margin from SEC EDGAR
+ * GET /api/gross-margin-ttm/:symbol
+ */
+async function handleTTMGrossMargin(request, env, url) {
+  const symbol = url.pathname.split('/').pop().toUpperCase();
+
+  if (!symbol) {
+    return jsonResponse({ error: 'Symbol required' }, 400);
+  }
+
+  try {
+    const facts = await getCompanyFacts(symbol, env);
+    const grossMargin = extractTTMGrossMargin(facts);
+    return jsonResponse(grossMargin);
   } catch (error) {
     return jsonResponse({ error: error.message }, 404);
   }
@@ -517,7 +761,7 @@ function extractTTMRevenue(facts) {
     const ttmRevenue = last4Quarters.reduce((sum, q) => sum + q.revenue, 0);
 
     ttm.push({
-      period: quarterly[i - 3].period,  // Use most recent quarter, not oldest
+      period: quarterly[i - 3].period,  // Use most recent quarter (data is descending)
       revenue: ttmRevenue
     });
   }
@@ -654,7 +898,7 @@ function extractTTMEarnings(facts) {
     const ttmEarnings = last4Quarters.reduce((sum, q) => sum + q.earnings, 0);
 
     ttm.push({
-      period: quarterly[i - 3].period,  // Use most recent quarter, not oldest
+      period: quarterly[i - 3].period,  // Use most recent quarter (data is descending)
       earnings: ttmEarnings
     });
   }
@@ -788,7 +1032,7 @@ function extractTTMOperatingIncome(facts) {
     const ttmOperatingIncome = last4Quarters.reduce((sum, q) => sum + q.operatingIncome, 0);
 
     ttm.push({
-      period: quarterly[i - 3].period,  // Use most recent quarter, not oldest
+      period: quarterly[i - 3].period,  // Use most recent quarter (data is descending)
       operatingIncome: ttmOperatingIncome
     });
   }
@@ -1067,7 +1311,7 @@ function extractTTMGrossProfit(facts) {
     const ttmGrossProfit = last4Quarters.reduce((sum, q) => sum + q.grossProfit, 0);
 
     const ttmPoint = {
-      period: quarterly[i - 3].period,  // Use most recent quarter, not oldest
+      period: quarterly[i - 3].period,  // Use most recent quarter (data is descending)
       grossProfit: ttmGrossProfit
     };
 
@@ -1083,207 +1327,861 @@ function extractTTMGrossProfit(facts) {
 }
 
 /**
- * Extract quarterly shares outstanding from SEC EDGAR data
- * Returns last 40 quarters of weighted average shares outstanding
+ * Extract quarterly assets from SEC EDGAR data
+ * Assets are balance sheet items (point-in-time measurements)
+ * Returns last 40 quarters of total assets
  */
-function extractSharesOutstanding(facts) {
-  // Prioritize diluted shares, then instant measurements, then basic
-  const sharesKeys = [
-    'WeightedAverageNumberOfDilutedSharesOutstanding',
-    'CommonStockSharesOutstanding',
-    'WeightedAverageNumberOfSharesOutstandingBasic'
+function extractAssets(facts) {
+  const assetsKeys = [
+    'Assets'
   ];
 
-  // Collect quarterly data from all available keys
-  const allQuarterly = [];
+  // Collect point-in-time asset data
+  const allAssets = [];
 
-  for (const key of sharesKeys) {
+  for (const key of assetsKeys) {
     if (facts.facts['us-gaap'] && facts.facts['us-gaap'][key]) {
-      const units = facts.facts['us-gaap'][key].units?.shares;
+      const units = facts.facts['us-gaap'][key].units?.USD;
       if (!units) continue;
 
       for (const item of units) {
+        // Assets are instant measurements (no start date, only end date)
         if (!item.val || item.val <= 0 || !item.end) continue;
-
-        // For shares outstanding, look for quarterly reports
-        // Weighted average shares are typically quarterly (with start/end)
-        // Point-in-time shares may only have end date
-        if (item.start) {
-          const startDate = new Date(item.start);
-          const endDate = new Date(item.end);
-          const daysDiff = (endDate - startDate) / (1000 * 60 * 60 * 24);
-
-          // Quarterly data (70-120 days)
-          if (daysDiff >= 70 && daysDiff <= 120) {
-            allQuarterly.push(item);
-          }
-        } else {
-          // Point-in-time measurement (like CommonStockSharesOutstanding)
-          // These typically represent quarter-end values
-          allQuarterly.push(item);
-        }
+        allAssets.push(item);
       }
     }
   }
 
-  // Group by period end date, keeping all candidates per period
-  const byPeriod = {};
-  for (const item of allQuarterly) {
-    // Check if this is quarterly data using frame (if available) or fiscal period
-    let isQuarterly = false;
-    let isInstant = false;
-    let isAnnual = false;
-
-    if (item.frame) {
-      // Use frame if available
-      isQuarterly = /Q[1-4]/.test(item.frame);
-      isInstant = item.frame.endsWith('I');
-      isAnnual = /CY\d{4}$/.test(item.frame);
-    } else if (item.fp) {
-      // Fallback to fiscal period (fp) if frame not available
-      // fp values: Q1, Q2, Q3, Q4, FY
-      isQuarterly = /^Q[1-4]$/.test(item.fp);
-      isAnnual = item.fp === 'FY';
-    } else if (item.form) {
-      // Last fallback: use form type
-      isQuarterly = item.form === '10-Q';
-      isAnnual = item.form === '10-K';
-    }
-
-    // Skip if not quarterly, instant, or annual
-    if (!isQuarterly && !isInstant && !isAnnual) continue;
-
-    // For quarterly data, verify period duration if we have start/end dates
-    if (item.start && !isInstant && !isAnnual) {
-      const startDate = new Date(item.start);
-      const endDate = new Date(item.end);
-      const daysDiff = (endDate - startDate) / (1000 * 60 * 60 * 24);
-      // Skip if not quarterly period (70-120 days)
-      if (daysDiff < 70 || daysDiff > 120) continue;
-    }
-
-    if (!byPeriod[item.end]) byPeriod[item.end] = [];
-    byPeriod[item.end].push(item);
-  }
-
-  // For each period, select the best value
-  const quarterlyDeduped = Object.keys(byPeriod)
-    .sort((a, b) => b.localeCompare(a)) // Sort periods descending
-    .map(period => {
-      const candidates = byPeriod[period];
-
-      // Sort candidates: prefer larger values (split-adjusted), then weighted averages, then later filings
-      candidates.sort((a, b) => {
-        // Prefer larger values (split-adjusted data)
-        if (a.val !== b.val) return b.val - a.val;
-
-        // Prefer weighted average periods over instant measurements (more accurate for quarterly data)
-        const aIsInstant = a.frame && a.frame.endsWith('I');
-        const bIsInstant = b.frame && b.frame.endsWith('I');
-        const aHasPeriod = a.start != null;
-        const bHasPeriod = b.start != null;
-
-        // Prefer items with periods (weighted averages) over instant measurements
-        if (aHasPeriod && !bHasPeriod && !bIsInstant) return -1;
-        if (!aHasPeriod && bHasPeriod && !aIsInstant) return 1;
-
-        // Prefer later filing dates (newer filings often have split-adjusted data)
-        if (a.filed && b.filed && a.filed !== b.filed) {
-          return b.filed.localeCompare(a.filed);
-        }
-
-        // Prefer amended filings
-        const aIsAmended = a.form && a.form.includes('/A');
-        const bIsAmended = b.form && b.form.includes('/A');
-        if (aIsAmended && !bIsAmended) return -1;
-        if (!aIsAmended && bIsAmended) return 1;
-
-        return 0;
-      });
-
-      return { period: period, sharesOutstanding: candidates[0].val };
-    });
-
-  // Apply stock split adjustments
-  const adjusted = adjustForStockSplits(quarterlyDeduped);
-
-  return adjusted.slice(0, 40);
-}
-
-/**
- * Detect and adjust for stock splits in shares outstanding data
- * Works backwards from newest data to detect and adjust historical splits
- */
-function adjustForStockSplits(data) {
-  if (data.length < 2) return data;
-
-  // Sort by period descending (newest first) for processing
-  const sorted = [...data].sort((a, b) => b.period.localeCompare(a.period));
-
-  // Track cumulative split ratio (starts at 1.0)
-  let cumulativeSplitRatio = 1.0;
-  const adjusted = [];
-
-  for (let i = 0; i < sorted.length; i++) {
-    const current = sorted[i];
-
-    // Apply current cumulative ratio (for periods before any detected splits)
-    adjusted.push({
-      period: current.period,
-      sharesOutstanding: current.sharesOutstanding * cumulativeSplitRatio
-    });
-
-    // Check if there's a split between this period and the previous (older) one
-    if (i < sorted.length - 1) {
-      const previous = sorted[i + 1]; // Older period
-      const ratio = current.sharesOutstanding / previous.sharesOutstanding;
-
-      // Detect split going backwards: current shares are significantly higher than previous
-      // This means a split happened, and we need to adjust older data
-      if (ratio >= 1.5 && ratio <= 10) {
-        // Round to nearest common split ratio (2, 3, 4, 5, 7, 10)
-        const commonRatios = [2, 3, 4, 5, 7, 10];
-        let detectedRatio = ratio;
-
-        for (const commonRatio of commonRatios) {
-          if (Math.abs(ratio - commonRatio) < 0.3) {
-            detectedRatio = commonRatio;
-            break;
-          }
-        }
-
-        // Accumulate the ratio for older periods
-        cumulativeSplitRatio *= detectedRatio;
+  // Deduplicate by period end date
+  // Prefer amended filings and later filing dates
+  const assetsDeduped = allAssets
+    .filter(item => {
+      // Filter to quarterly reports using frame field if available
+      if (item.frame) {
+        return /Q[1-4]/.test(item.frame) || /CY\d{4}$/.test(item.frame);
       }
-    }
-  }
+      // If no frame, include all (will be filtered by filing form)
+      return item.form === '10-Q' || item.form === '10-K' ||
+             item.form === '10-Q/A' || item.form === '10-K/A';
+    })
+    .sort((a, b) => {
+      // First sort by end date (descending)
+      if (a.end !== b.end) return b.end.localeCompare(a.end);
 
-  // Return in original order (newest first)
-  return adjusted;
+      // For same period, prefer amended filings
+      const aIsAmended = a.form && a.form.includes('/A');
+      const bIsAmended = b.form && b.form.includes('/A');
+      if (aIsAmended && !bIsAmended) return -1;
+      if (!aIsAmended && bIsAmended) return 1;
+
+      // Then prefer later filing dates
+      return (b.filed || '').localeCompare(a.filed || '');
+    })
+    .reduce((acc, item) => {
+      if (!acc.find(x => x.period === item.end)) {
+        acc.push({ period: item.end, assets: item.val });
+      }
+      return acc;
+    }, []);
+
+  return assetsDeduped.slice(0, 40);
 }
 
 /**
- * Extract TTM shares outstanding (last 37 periods)
- * For shares outstanding, TTM is simply the average of the last 4 quarters
+ * Extract TTM assets (last 37 periods)
+ * For balance sheet items like assets, TTM is simply the average of the last 4 quarters
  */
-function extractTTMSharesOutstanding(facts) {
+function extractTTMAssets(facts) {
   // First get quarterly data
-  const quarterly = extractSharesOutstanding(facts);
+  const quarterly = extractAssets(facts);
   if (quarterly.length < 4) return [];
 
   // Calculate TTM average for each period
   const ttm = [];
   for (let i = 3; i < quarterly.length; i++) {
     const last4Quarters = quarterly.slice(i - 3, i + 1);
-    const avgShares = last4Quarters.reduce((sum, q) => sum + q.sharesOutstanding, 0) / 4;
+    const avgAssets = last4Quarters.reduce((sum, q) => sum + q.assets, 0) / 4;
 
     ttm.push({
-      period: quarterly[i - 3].period,  // Use most recent quarter
-      sharesOutstanding: avgShares
+      period: quarterly[i - 3].period,  // Use most recent quarter (data is descending)
+      assets: avgAssets
     });
   }
 
   return ttm.slice(0, 37);
+}
+
+/**
+ * Extract quarterly liabilities from SEC EDGAR data
+ * Liabilities are balance sheet items (point-in-time measurements)
+ * Returns last 40 quarters of total liabilities
+ */
+function extractLiabilities(facts) {
+  const liabilitiesKeys = [
+    'Liabilities'
+  ];
+
+  // Collect point-in-time liability data
+  const allLiabilities = [];
+
+  for (const key of liabilitiesKeys) {
+    if (facts.facts['us-gaap'] && facts.facts['us-gaap'][key]) {
+      const units = facts.facts['us-gaap'][key].units?.USD;
+      if (!units) continue;
+
+      for (const item of units) {
+        // Liabilities are instant measurements (no start date, only end date)
+        if (!item.val || item.val <= 0 || !item.end) continue;
+        allLiabilities.push(item);
+      }
+    }
+  }
+
+  // Deduplicate by period end date
+  // Prefer amended filings and later filing dates
+  const liabilitiesDeduped = allLiabilities
+    .filter(item => {
+      // Filter to quarterly reports using frame field if available
+      if (item.frame) {
+        return /Q[1-4]/.test(item.frame) || /CY\d{4}$/.test(item.frame);
+      }
+      // If no frame, include all (will be filtered by filing form)
+      return item.form === '10-Q' || item.form === '10-K' ||
+             item.form === '10-Q/A' || item.form === '10-K/A';
+    })
+    .sort((a, b) => {
+      // First sort by end date (descending)
+      if (a.end !== b.end) return b.end.localeCompare(a.end);
+
+      // For same period, prefer amended filings
+      const aIsAmended = a.form && a.form.includes('/A');
+      const bIsAmended = b.form && b.form.includes('/A');
+      if (aIsAmended && !bIsAmended) return -1;
+      if (!aIsAmended && bIsAmended) return 1;
+
+      // Then prefer later filing dates
+      return (b.filed || '').localeCompare(a.filed || '');
+    })
+    .reduce((acc, item) => {
+      if (!acc.find(x => x.period === item.end)) {
+        acc.push({ period: item.end, liabilities: item.val });
+      }
+      return acc;
+    }, []);
+
+  return liabilitiesDeduped.slice(0, 40);
+}
+
+/**
+ * Extract quarterly dividends from SEC EDGAR data
+ * Dividends are cash flow items (have start and end dates)
+ * Returns last 40 quarters of dividend payments
+ *
+ * Note: Many companies report dividends cumulatively (YTD), so we need to
+ * calculate quarterly values by subtracting the previous quarter's cumulative value
+ */
+function extractDividends(facts) {
+  const dividendsKeys = [
+    'PaymentsOfDividendsCommonStock',
+    'PaymentsOfDividends'
+  ];
+
+  // Collect all dividend data (both quarterly and cumulative)
+  const allData = [];
+
+  for (const key of dividendsKeys) {
+    if (facts.facts['us-gaap'] && facts.facts['us-gaap'][key]) {
+      const units = facts.facts['us-gaap'][key].units?.USD;
+      if (!units) continue;
+
+      for (const item of units) {
+        if (!item.val || item.val <= 0 || !item.start || !item.end) continue;
+
+        const startDate = new Date(item.start);
+        const endDate = new Date(item.end);
+        const daysDiff = (endDate - startDate) / (1000 * 60 * 60 * 24);
+
+        // Accept quarterly (70-120 days) and cumulative (150-380 days) data
+        if ((daysDiff >= 70 && daysDiff <= 120) || (daysDiff >= 150 && daysDiff <= 380)) {
+          allData.push(item);
+        }
+      }
+    }
+  }
+
+  // Separate quarterly and cumulative data
+  const quarterly = [];
+  const cumulative = [];
+
+  for (const item of allData) {
+    const startDate = new Date(item.start);
+    const endDate = new Date(item.end);
+    const daysDiff = (endDate - startDate) / (1000 * 60 * 60 * 24);
+
+    if (daysDiff >= 70 && daysDiff <= 120) {
+      quarterly.push(item);
+    } else if (daysDiff >= 150 && daysDiff <= 380) {
+      cumulative.push(item);
+    }
+  }
+
+  // Deduplicate quarterly data
+  const quarterlyDeduped = quarterly
+    .filter(item => {
+      // Accept items with quarterly frames or fiscal periods
+      if (item.frame && /Q[1-4]/.test(item.frame)) return true;
+      if (item.fp && /^Q[1-4]$/.test(item.fp)) return true;
+      return false;
+    })
+    .sort((a, b) => {
+      if (a.end !== b.end) return b.end.localeCompare(a.end);
+      const aIsAmended = a.form && a.form.includes('/A');
+      const bIsAmended = b.form && b.form.includes('/A');
+      if (aIsAmended && !bIsAmended) return -1;
+      if (!aIsAmended && bIsAmended) return 1;
+      return (b.filed || '').localeCompare(a.filed || '');
+    })
+    .reduce((acc, item) => {
+      if (!acc.find(x => x.period === item.end)) {
+        acc.push({ period: item.end, dividends: item.val });
+      }
+      return acc;
+    }, []);
+
+  // Calculate quarterly values from cumulative data
+  const calculated = [];
+
+  // Group cumulative data by fiscal year (same start date)
+  const byFiscalYear = {};
+  for (const item of cumulative) {
+    const key = item.start;
+    if (!byFiscalYear[key]) byFiscalYear[key] = [];
+    byFiscalYear[key].push(item);
+  }
+
+  // For each fiscal year, calculate quarterly dividends
+  for (const fiscalYear in byFiscalYear) {
+    const periods = byFiscalYear[fiscalYear].sort((a, b) => a.end.localeCompare(b.end));
+
+    for (let i = 0; i < periods.length; i++) {
+      const current = periods[i];
+
+      // Skip if we already have this quarter from quarterly data
+      if (quarterlyDeduped.find(x => x.period === current.end)) continue;
+
+      // Calculate quarterly value
+      let quarterlyValue;
+      if (i === 0) {
+        // First period of the year - use the value as-is (it's Q1)
+        quarterlyValue = current.val;
+      } else {
+        // Subtract previous cumulative to get this quarter
+        quarterlyValue = current.val - periods[i - 1].val;
+      }
+
+      // Only add if positive
+      if (quarterlyValue > 0) {
+        calculated.push({ period: current.end, dividends: quarterlyValue });
+      }
+    }
+  }
+
+  // Combine quarterly and calculated, deduplicate, and sort
+  const combined = [...quarterlyDeduped, ...calculated]
+    .sort((a, b) => b.period.localeCompare(a.period))
+    .reduce((acc, item) => {
+      if (!acc.find(x => x.period === item.period)) {
+        acc.push(item);
+      }
+      return acc;
+    }, []);
+
+  return combined.slice(0, 40);
+}
+
+/**
+ * Extract quarterly EBITDA (last 40 quarters = 10 years)
+ * EBITDA = Operating Income + Depreciation & Amortization
+ * Calculates EBITDA from SEC EDGAR components
+ */
+function extractEBITDA(facts) {
+  // First, get operating income data
+  const operatingIncomeData = extractOperatingIncome(facts);
+
+  // Get depreciation & amortization data
+  const depreciationKeys = [
+    'DepreciationDepletionAndAmortization',
+    'Depreciation',
+    'DepreciationAndAmortization'
+  ];
+
+  // Collect quarterly depreciation data
+  const allQuarterly = [];
+  const allCumulative = [];
+
+  for (const key of depreciationKeys) {
+    if (facts.facts['us-gaap'] && facts.facts['us-gaap'][key]) {
+      const units = facts.facts['us-gaap'][key].units?.USD;
+      if (!units) continue;
+
+      for (const item of units) {
+        if (!item.val || item.val <= 0 || !item.start || !item.end) continue;
+
+        const startDate = new Date(item.start);
+        const endDate = new Date(item.end);
+        const daysDiff = (endDate - startDate) / (1000 * 60 * 60 * 24);
+
+        // Quarterly data (70-120 days)
+        if (daysDiff >= 70 && daysDiff <= 120) {
+          allQuarterly.push(item);
+        }
+        // Cumulative year-to-date data
+        else if (daysDiff >= 150 && daysDiff <= 380) {
+          allCumulative.push(item);
+        }
+      }
+    }
+  }
+
+  // Deduplicate quarterly depreciation data
+  const quarterlyDeduped = allQuarterly
+    .filter(item => item.frame && /Q[1-3]/.test(item.frame))
+    .sort((a, b) => {
+      if (a.end !== b.end) return b.end.localeCompare(a.end);
+      const aIsAmended = a.form && a.form.includes('/A');
+      const bIsAmended = b.form && b.form.includes('/A');
+      if (aIsAmended && !bIsAmended) return -1;
+      if (!aIsAmended && bIsAmended) return 1;
+      return (b.filed || '').localeCompare(a.filed || '');
+    })
+    .reduce((acc, item) => {
+      if (!acc.find(x => x.period === item.end)) {
+        acc.push({ period: item.end, depreciation: item.val });
+      }
+      return acc;
+    }, []);
+
+  // Calculate Q4 depreciation from annual data
+  const calculated = [];
+  for (const annual of allCumulative) {
+    const annualStart = annual.start;
+    const annualEnd = annual.end;
+    const annualDays = (new Date(annualEnd) - new Date(annualStart)) / (1000 * 60 * 60 * 24);
+
+    if (annualDays < 330 || annualDays > 380) continue;
+
+    const nineMonth = allCumulative.find(item =>
+      item.start === annualStart &&
+      item.end < annualEnd &&
+      Math.abs((new Date(item.end) - new Date(item.start)) / (1000 * 60 * 60 * 24) - 270) < 30
+    );
+
+    if (nineMonth) {
+      const q4Depreciation = annual.val - nineMonth.val;
+      if (q4Depreciation > 0) {
+        const hasQuarter = quarterlyDeduped.find(x => x.period === annualEnd);
+        if (!hasQuarter) {
+          calculated.push({ period: annualEnd, depreciation: q4Depreciation });
+        }
+      }
+    }
+  }
+
+  // Combine depreciation data
+  const depreciationData = [...quarterlyDeduped, ...calculated]
+    .sort((a, b) => b.period.localeCompare(a.period))
+    .reduce((acc, item) => {
+      if (!acc.find(x => x.period === item.period)) {
+        acc.push(item);
+      }
+      return acc;
+    }, []);
+
+  // Calculate EBITDA = Operating Income + Depreciation & Amortization
+  // If quarterly depreciation data isn't available, estimate from annual data
+  const ebitdaData = [];
+
+  for (const opIncome of operatingIncomeData) {
+    const depreciation = depreciationData.find(d => d.period === opIncome.period);
+
+    if (depreciation) {
+      // Use exact quarterly depreciation data
+      ebitdaData.push({
+        period: opIncome.period,
+        ebitda: opIncome.operatingIncome + depreciation.depreciation
+      });
+    } else {
+      // Find annual depreciation for this period's fiscal year
+      const periodDate = new Date(opIncome.period);
+      const fiscalYearEnd = depreciationData.find(d => {
+        const depDate = new Date(d.period);
+        return depDate.getFullYear() === periodDate.getFullYear() &&
+               Math.abs(depDate.getMonth() - periodDate.getMonth()) < 3;
+      });
+
+      if (fiscalYearEnd) {
+        // Estimate quarterly depreciation as annual/4
+        const estimatedQuarterlyDepreciation = fiscalYearEnd.depreciation / 4;
+        ebitdaData.push({
+          period: opIncome.period,
+          ebitda: opIncome.operatingIncome + estimatedQuarterlyDepreciation
+        });
+      } else {
+        // If no depreciation data at all, just use operating income
+        // (Some companies may not report depreciation separately)
+        ebitdaData.push({
+          period: opIncome.period,
+          ebitda: opIncome.operatingIncome
+        });
+      }
+    }
+  }
+
+  return ebitdaData.slice(0, 40);
+}
+
+/**
+ * Extract TTM EBITDA (last 37 TTM periods)
+ * Calculates TTM by summing last 4 quarters for each period
+ */
+function extractTTMEBITDA(facts) {
+  // First get quarterly EBITDA data
+  const quarterly = extractEBITDA(facts);
+  if (quarterly.length < 4) return [];
+
+  // Calculate TTM for each period (starting from Q4)
+  const ttm = [];
+  for (let i = 3; i < quarterly.length; i++) {
+    const last4Quarters = quarterly.slice(i - 3, i + 1);
+    const ttmEBITDA = last4Quarters.reduce((sum, q) => sum + q.ebitda, 0);
+
+    ttm.push({
+      period: quarterly[i - 3].period,  // Use most recent quarter (data is descending) period
+      ebitda: ttmEBITDA
+    });
+  }
+
+  return ttm.slice(0, 37);
+}
+
+/**
+ * Extract quarterly Free Cash Flow (last 40 quarters = 10 years)
+ * FCF = Operating Cash Flow - Capital Expenditures
+ * Calculates FCF from SEC EDGAR cash flow components
+ */
+function extractFreeCashFlow(facts) {
+  // Get operating cash flow data
+  const operatingCashFlowKeys = [
+    'NetCashProvidedByUsedInOperatingActivities',
+    'CashProvidedByUsedInOperatingActivities'
+  ];
+
+  // Collect quarterly operating cash flow data
+  const allQuarterly = [];
+  const allCumulative = [];
+
+  for (const key of operatingCashFlowKeys) {
+    if (facts.facts['us-gaap'] && facts.facts['us-gaap'][key]) {
+      const units = facts.facts['us-gaap'][key].units?.USD;
+      if (!units) continue;
+
+      for (const item of units) {
+        if (!item.val || item.val === 0 || !item.start || !item.end) continue;
+
+        const startDate = new Date(item.start);
+        const endDate = new Date(item.end);
+        const daysDiff = (endDate - startDate) / (1000 * 60 * 60 * 24);
+
+        // Quarterly data (70-120 days)
+        if (daysDiff >= 70 && daysDiff <= 120) {
+          allQuarterly.push(item);
+        }
+        // Cumulative year-to-date data
+        else if (daysDiff >= 150 && daysDiff <= 380) {
+          allCumulative.push(item);
+        }
+      }
+    }
+  }
+
+  // Deduplicate quarterly operating cash flow data
+  const quarterlyDeduped = allQuarterly
+    .filter(item => !item.frame || /Q[1-3]/.test(item.frame))  // Include items without frame, or with Q1-Q3 frames
+    .sort((a, b) => {
+      if (a.end !== b.end) return b.end.localeCompare(a.end);
+      const aIsAmended = a.form && a.form.includes('/A');
+      const bIsAmended = b.form && b.form.includes('/A');
+      if (aIsAmended && !bIsAmended) return -1;
+      if (!aIsAmended && bIsAmended) return 1;
+      return (b.filed || '').localeCompare(a.filed || '');
+    })
+    .reduce((acc, item) => {
+      if (!acc.find(x => x.period === item.end)) {
+        acc.push({ period: item.end, operatingCashFlow: item.val, start: item.start });
+      }
+      return acc;
+    }, []);
+
+  // Calculate Q2, Q3, Q4 operating cash flow from cumulative data
+  const calculated = [];
+  for (const annual of allCumulative) {
+    const annualStart = annual.start;
+    const annualEnd = annual.end;
+    const annualDays = (new Date(annualEnd) - new Date(annualStart)) / (1000 * 60 * 60 * 24);
+
+    if (annualDays < 330 || annualDays > 380) continue;
+
+    // Find 9-month, 6-month, and Q1 data for the same fiscal year
+    const nineMonth = allCumulative.find(item =>
+      item.start === annualStart &&
+      item.end < annualEnd &&
+      Math.abs((new Date(item.end) - new Date(item.start)) / (1000 * 60 * 60 * 24) - 270) < 30
+    );
+
+    const sixMonth = allCumulative.find(item =>
+      item.start === annualStart &&
+      item.end < annualEnd &&
+      Math.abs((new Date(item.end) - new Date(item.start)) / (1000 * 60 * 60 * 24) - 180) < 30
+    );
+
+    const q1 = quarterlyDeduped.find(item =>
+      item.start === annualStart &&
+      Math.abs((new Date(item.period) - new Date(item.start)) / (1000 * 60 * 60 * 24) - 90) < 30
+    );
+
+    // Calculate Q4 = Annual - 9-month
+    if (nineMonth) {
+      const q4OperatingCashFlow = annual.val - nineMonth.val;
+      const hasQuarter = quarterlyDeduped.find(x => x.period === annualEnd);
+      if (!hasQuarter) {
+        calculated.push({ period: annualEnd, operatingCashFlow: q4OperatingCashFlow });
+      }
+    }
+
+    // Calculate Q3 = 9-month - 6-month
+    if (nineMonth && sixMonth) {
+      const q3OperatingCashFlow = nineMonth.val - sixMonth.val;
+      const hasQuarter = quarterlyDeduped.find(x => x.period === nineMonth.end);
+      if (!hasQuarter) {
+        calculated.push({ period: nineMonth.end, operatingCashFlow: q3OperatingCashFlow });
+      }
+    }
+
+    // Calculate Q2 = 6-month - Q1
+    if (sixMonth && q1) {
+      const q2OperatingCashFlow = sixMonth.val - q1.operatingCashFlow;
+      const hasQuarter = quarterlyDeduped.find(x => x.period === sixMonth.end);
+      if (!hasQuarter) {
+        calculated.push({ period: sixMonth.end, operatingCashFlow: q2OperatingCashFlow });
+      }
+    }
+  }
+
+  // Combine operating cash flow data
+  const operatingCashFlowData = [...quarterlyDeduped, ...calculated]
+    .sort((a, b) => b.period.localeCompare(a.period))
+    .reduce((acc, item) => {
+      if (!acc.find(x => x.period === item.period)) {
+        acc.push(item);
+      }
+      return acc;
+    }, []);
+
+  // Get capital expenditures data
+  const capexKeys = [
+    'PaymentsToAcquirePropertyPlantAndEquipment',
+    'PaymentsForCapitalImprovements'
+  ];
+
+  const allCapexQuarterly = [];
+  const allCapexCumulative = [];
+
+  for (const key of capexKeys) {
+    if (facts.facts['us-gaap'] && facts.facts['us-gaap'][key]) {
+      const units = facts.facts['us-gaap'][key].units?.USD;
+      if (!units) continue;
+
+      for (const item of units) {
+        if (!item.val || item.val <= 0 || !item.start || !item.end) continue;
+
+        const startDate = new Date(item.start);
+        const endDate = new Date(item.end);
+        const daysDiff = (endDate - startDate) / (1000 * 60 * 60 * 24);
+
+        // Quarterly data (70-120 days)
+        if (daysDiff >= 70 && daysDiff <= 120) {
+          allCapexQuarterly.push(item);
+        }
+        // Cumulative year-to-date data
+        else if (daysDiff >= 150 && daysDiff <= 380) {
+          allCapexCumulative.push(item);
+        }
+      }
+    }
+  }
+
+  // Deduplicate quarterly capex data
+  const capexQuarterlyDeduped = allCapexQuarterly
+    .filter(item => !item.frame || /Q[1-3]/.test(item.frame))  // Include items without frame, or with Q1-Q3 frames
+    .sort((a, b) => {
+      if (a.end !== b.end) return b.end.localeCompare(a.end);
+      const aIsAmended = a.form && a.form.includes('/A');
+      const bIsAmended = b.form && b.form.includes('/A');
+      if (aIsAmended && !bIsAmended) return -1;
+      if (!aIsAmended && bIsAmended) return 1;
+      return (b.filed || '').localeCompare(a.filed || '');
+    })
+    .reduce((acc, item) => {
+      if (!acc.find(x => x.period === item.end)) {
+        acc.push({ period: item.end, capex: item.val, start: item.start });
+      }
+      return acc;
+    }, []);
+
+  // Calculate Q2, Q3, Q4 capex from cumulative data
+  const capexCalculated = [];
+  for (const annual of allCapexCumulative) {
+    const annualStart = annual.start;
+    const annualEnd = annual.end;
+    const annualDays = (new Date(annualEnd) - new Date(annualStart)) / (1000 * 60 * 60 * 24);
+
+    if (annualDays < 330 || annualDays > 380) continue;
+
+    // Find 9-month, 6-month, and Q1 data for the same fiscal year
+    const nineMonth = allCapexCumulative.find(item =>
+      item.start === annualStart &&
+      item.end < annualEnd &&
+      Math.abs((new Date(item.end) - new Date(item.start)) / (1000 * 60 * 60 * 24) - 270) < 30
+    );
+
+    const sixMonth = allCapexCumulative.find(item =>
+      item.start === annualStart &&
+      item.end < annualEnd &&
+      Math.abs((new Date(item.end) - new Date(item.start)) / (1000 * 60 * 60 * 24) - 180) < 30
+    );
+
+    const q1 = capexQuarterlyDeduped.find(item =>
+      item.start === annualStart &&
+      Math.abs((new Date(item.period) - new Date(item.start)) / (1000 * 60 * 60 * 24) - 90) < 30
+    );
+
+    // Calculate Q4 = Annual - 9-month
+    if (nineMonth) {
+      const q4Capex = annual.val - nineMonth.val;
+      if (q4Capex > 0) {
+        const hasQuarter = capexQuarterlyDeduped.find(x => x.period === annualEnd);
+        if (!hasQuarter) {
+          capexCalculated.push({ period: annualEnd, capex: q4Capex });
+        }
+      }
+    }
+
+    // Calculate Q3 = 9-month - 6-month
+    if (nineMonth && sixMonth) {
+      const q3Capex = nineMonth.val - sixMonth.val;
+      if (q3Capex > 0) {
+        const hasQuarter = capexQuarterlyDeduped.find(x => x.period === nineMonth.end);
+        if (!hasQuarter) {
+          capexCalculated.push({ period: nineMonth.end, capex: q3Capex });
+        }
+      }
+    }
+
+    // Calculate Q2 = 6-month - Q1
+    if (sixMonth && q1) {
+      const q2Capex = sixMonth.val - q1.capex;
+      if (q2Capex > 0) {
+        const hasQuarter = capexQuarterlyDeduped.find(x => x.period === sixMonth.end);
+        if (!hasQuarter) {
+          capexCalculated.push({ period: sixMonth.end, capex: q2Capex });
+        }
+      }
+    }
+  }
+
+  // Combine capex data
+  const capexData = [...capexQuarterlyDeduped, ...capexCalculated]
+    .sort((a, b) => b.period.localeCompare(a.period))
+    .reduce((acc, item) => {
+      if (!acc.find(x => x.period === item.period)) {
+        acc.push(item);
+      }
+      return acc;
+    }, []);
+
+  // Calculate FCF = Operating Cash Flow - Capital Expenditures
+  const fcfData = [];
+  for (const ocf of operatingCashFlowData) {
+    const capex = capexData.find(c => c.period === ocf.period);
+    if (capex) {
+      fcfData.push({
+        period: ocf.period,
+        freeCashFlow: ocf.operatingCashFlow - capex.capex
+      });
+    } else {
+      // If no capex data, use OCF as FCF (some companies may not report capex separately)
+      fcfData.push({
+        period: ocf.period,
+        freeCashFlow: ocf.operatingCashFlow
+      });
+    }
+  }
+
+  return fcfData.slice(0, 40);
+}
+
+/**
+ * Extract TTM Free Cash Flow (last 37 TTM periods)
+ * Calculates TTM by summing last 4 quarters for each period
+ */
+function extractTTMFreeCashFlow(facts) {
+  // First get quarterly FCF data
+  const quarterly = extractFreeCashFlow(facts);
+  if (quarterly.length < 4) return [];
+
+  // Calculate TTM for each period (starting from Q4)
+  const ttm = [];
+  for (let i = 3; i < quarterly.length; i++) {
+    const last4Quarters = quarterly.slice(i - 3, i + 1);
+    const ttmFCF = last4Quarters.reduce((sum, q) => sum + q.freeCashFlow, 0);
+
+    ttm.push({
+      period: quarterly[i - 3].period,  // Use most recent quarter (data is descending) period
+      freeCashFlow: ttmFCF
+    });
+  }
+
+  return ttm.slice(0, 37);
+}
+
+/**
+ * Extract Net Margin (last 40 quarters)
+ * Net Margin = (Net Income / Revenue) × 100
+ * Returns percentage values
+ */
+function extractNetMargin(facts) {
+  // Get quarterly earnings (net income) and revenue data
+  const earningsData = extractEarnings(facts);
+  const revenueData = extractRevenue(facts);
+
+  // Calculate net margin for each period where we have both values
+  const netMarginData = [];
+  for (const earnings of earningsData) {
+    const revenue = revenueData.find(r => r.period === earnings.period);
+    if (revenue && revenue.revenue > 0) {
+      const netMargin = (earnings.earnings / revenue.revenue) * 100;
+      netMarginData.push({
+        period: earnings.period,
+        netMargin: netMargin
+      });
+    }
+  }
+
+  return netMarginData.slice(0, 40);
+}
+
+/**
+ * Extract Operating Margin (last 40 quarters)
+ * Operating Margin = (Operating Income / Revenue) × 100
+ * Returns percentage values
+ */
+function extractOperatingMargin(facts) {
+  // Get quarterly operating income and revenue data
+  const operatingIncomeData = extractOperatingIncome(facts);
+  const revenueData = extractRevenue(facts);
+
+  // Calculate operating margin for each period where we have both values
+  const operatingMarginData = [];
+  for (const opIncome of operatingIncomeData) {
+    const revenue = revenueData.find(r => r.period === opIncome.period);
+    if (revenue && revenue.revenue > 0) {
+      const operatingMargin = (opIncome.operatingIncome / revenue.revenue) * 100;
+      operatingMarginData.push({
+        period: opIncome.period,
+        operatingMargin: operatingMargin
+      });
+    }
+  }
+
+  return operatingMarginData.slice(0, 40);
+}
+
+/**
+ * Extract TTM Net Margin (last 37 TTM periods)
+ * TTM Net Margin = (TTM Net Income / TTM Revenue) × 100
+ * Returns percentage values
+ */
+function extractTTMNetMargin(facts) {
+  // Get TTM earnings and revenue data
+  const ttmEarningsData = extractTTMEarnings(facts);
+  const ttmRevenueData = extractTTMRevenue(facts);
+
+  // Calculate TTM net margin for each period where we have both values
+  const ttmNetMarginData = [];
+  for (const earnings of ttmEarningsData) {
+    const revenue = ttmRevenueData.find(r => r.period === earnings.period);
+    if (revenue && revenue.revenue > 0) {
+      const netMargin = (earnings.earnings / revenue.revenue) * 100;
+      ttmNetMarginData.push({
+        period: earnings.period,
+        netMargin: netMargin
+      });
+    }
+  }
+
+  return ttmNetMarginData.slice(0, 37);
+}
+
+/**
+ * Extract TTM Operating Margin (last 37 TTM periods)
+ * TTM Operating Margin = (TTM Operating Income / TTM Revenue) × 100
+ * Returns percentage values
+ */
+function extractTTMOperatingMargin(facts) {
+  // Get TTM operating income and revenue data
+  const ttmOperatingIncomeData = extractTTMOperatingIncome(facts);
+  const ttmRevenueData = extractTTMRevenue(facts);
+
+  // Calculate TTM operating margin for each period where we have both values
+  const ttmOperatingMarginData = [];
+  for (const opIncome of ttmOperatingIncomeData) {
+    const revenue = ttmRevenueData.find(r => r.period === opIncome.period);
+    if (revenue && revenue.revenue > 0) {
+      const operatingMargin = (opIncome.operatingIncome / revenue.revenue) * 100;
+      ttmOperatingMarginData.push({
+        period: opIncome.period,
+        operatingMargin: operatingMargin
+      });
+    }
+  }
+
+  return ttmOperatingMarginData.slice(0, 37);
+}
+
+/**
+ * Extract TTM Gross Margin (last 37 TTM periods)
+ * TTM Gross Margin = (TTM Gross Profit / TTM Revenue) × 100
+ * Returns percentage values
+ */
+function extractTTMGrossMargin(facts) {
+  // Get TTM gross profit and revenue data
+  const ttmGrossProfitData = extractTTMGrossProfit(facts);
+  const ttmRevenueData = extractTTMRevenue(facts);
+
+  // Calculate TTM gross margin for each period where we have both values
+  const ttmGrossMarginData = [];
+  for (const grossProfit of ttmGrossProfitData) {
+    const revenue = ttmRevenueData.find(r => r.period === grossProfit.period);
+    if (revenue && revenue.revenue > 0) {
+      const grossMargin = (grossProfit.grossProfit / revenue.revenue) * 100;
+      ttmGrossMarginData.push({
+        period: grossProfit.period,
+        grossMargin: grossMargin
+      });
+    }
+  }
+
+  return ttmGrossMarginData.slice(0, 37);
 }
 
 /**

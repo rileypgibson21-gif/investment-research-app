@@ -1,45 +1,40 @@
 //
-//  SharesOutstandingChartView.swift
+//  GrossMarginChartView.swift
 //  Ekonix
 //
-//  Created for gross profit quarterly chart
+//  Created for grossMargin quarterly chart
 //
 
 import SwiftUI
 
-struct SharesOutstandingChartView: View {
+struct GrossMarginChartView: View {
     let symbol: String
     let apiService: StockAPIService
-    var onDataLoaded: (([SharesOutstandingDataPoint]) -> Void)? = nil
+    var onDataLoaded: (([GrossMarginDataPoint]) -> Void)? = nil
 
-    @State private var sharesOutstandingData: [SharesOutstandingDataPoint] = []
+    @State private var grossMarginData: [GrossMarginDataPoint] = []
     @State private var isLoading = false
     @State private var selectedBar: UUID?
 
-    var displayData: [SharesOutstandingDataPoint] {
-        // Sort by period (oldest first on left, newest on right) and take latest 40 quarters
-        let sorted = sharesOutstandingData.sorted { $0.period < $1.period }
-        return Array(sorted.suffix(ChartConstants.quarterlyDataLimit))
+    var displayData: [GrossMarginDataPoint] {
+        // Sort by period (oldest first on left, newest on right) and take latest 37 TTM periods
+        let sorted = grossMarginData.sorted { $0.period < $1.period }
+        return Array(sorted.suffix(ChartConstants.ttmDataLimit))
     }
 
-    var sharesOutstandingRange: (min: Double, max: Double) {
-        let values = displayData.map { $0.sharesOutstanding }
+    var grossMarginRange: (min: Double, max: Double) {
+        let values = displayData.map { $0.grossMargin }
         return ChartUtilities.calculateAdaptiveRange(values: values)
     }
 
-    private var valueScale: ChartUtilities.ValueScale {
-        let values = displayData.map { $0.sharesOutstanding }
-        return ChartUtilities.detectValueScale(values: values)
-    }
-
     private func getYAxisLabels() -> [Double] {
-        let range = sharesOutstandingRange
+        let range = grossMarginRange
         return ChartUtilities.generateYAxisLabels(minValue: range.min, maxValue: range.max)
     }
 
     /// Calculate the Y position where zero line sits (as fraction of chart height from bottom)
     private var zeroLinePosition: CGFloat {
-        let range = sharesOutstandingRange
+        let range = grossMarginRange
         let totalRange = range.max - range.min
         guard totalRange > 0 else { return 0 }
         // Zero position as fraction from bottom: -min / totalRange
@@ -54,16 +49,16 @@ struct SharesOutstandingChartView: View {
                     ProgressView()
                     Spacer()
                 }
-            } else if sharesOutstandingData.isEmpty {
+            } else if grossMarginData.isEmpty {
                 VStack(spacing: 20) {
                     Spacer()
                     Image(systemName: "chart.bar.xaxis")
                         .font(.system(size: 60))
                         .foregroundStyle(.gray)
-                    Text("No shares outstanding data available")
+                    Text("No gross margin data available")
                         .foregroundStyle(.secondary)
                     Button("Retry") {
-                        loadSharesOutstanding()
+                        loadGrossMargin()
                     }
                     Spacer()
                 }
@@ -72,7 +67,7 @@ struct SharesOutstandingChartView: View {
                     VStack(spacing: 20) {
                         // Chart with title
                         VStack(alignment: .leading, spacing: 16) {
-                            Text("Quarterly Shares Outstanding")
+                            Text("Trailing Twelve Months Gross Margin")
                                 .font(.headline)
                                 .frame(maxWidth: .infinity, alignment: .center)
 
@@ -101,8 +96,8 @@ struct SharesOutstandingChartView: View {
                                             // Data bars (drawn first, behind gridlines)
                                             HStack(alignment: .bottom, spacing: ChartConstants.barSpacing) {
                                                 ForEach(Array(displayData.enumerated()), id: \.element.id) { index, point in
-                                                    let heightValue = barHeight(for: point.sharesOutstanding, in: ChartConstants.chartHeight)
-                                                    let offsetValue = barOffset(for: point.sharesOutstanding, barHeight: heightValue, in: ChartConstants.chartHeight)
+                                                    let heightValue = barHeight(for: point.grossMargin, in: ChartConstants.chartHeight)
+                                                    let offsetValue = barOffset(for: point.grossMargin, barHeight: heightValue, in: ChartConstants.chartHeight)
 
                                                     VStack(spacing: 4) {
                                                         if selectedBar == point.id {
@@ -110,7 +105,7 @@ struct SharesOutstandingChartView: View {
                                                                 Text(formatDate(point.period))
                                                                     .font(.caption2)
                                                                     .fontWeight(.bold)
-                                                                Text(formatDetailedValue(point.sharesOutstanding))
+                                                                Text(formatDetailedValue(point.grossMargin))
                                                                     .font(.caption2)
                                                                     .fontWeight(.semibold)
                                                                 #if DEBUG
@@ -176,7 +171,7 @@ struct SharesOutstandingChartView: View {
                                             .allowsHitTesting(false)
 
                                             // Highlighted zero line (drawn last, most prominent)
-                                            if sharesOutstandingRange.min < 0 && sharesOutstandingRange.max > 0 {
+                                            if grossMarginRange.min < 0 && grossMarginRange.max > 0 {
                                                 Rectangle()
                                                     .fill(Color.gray.opacity(0.5))
                                                     .frame(height: 1)
@@ -185,12 +180,12 @@ struct SharesOutstandingChartView: View {
                                             }
                                         }
 
-                                        // X-axis labels - show every 8th quarter for 40 bars (shows ~5 year labels)
+                                        // X-axis labels - show every 7th period for 37 bars (shows ~5-6 year labels)
                                         HStack(alignment: .top, spacing: ChartConstants.barSpacing) {
                                             ForEach(Array(displayData.enumerated()), id: \.element.id) { index, point in
                                                 let isLastIndex = index == displayData.count - 1
-                                                let lastSampledIndex = (displayData.count - 1) / 8 * 8
-                                                let shouldShowLabel = index % 8 == 0 || (isLastIndex && index - lastSampledIndex >= 4)
+                                                let lastSampledIndex = (displayData.count - 1) / 7 * 7
+                                                let shouldShowLabel = index % 7 == 0 || (isLastIndex && index - lastSampledIndex >= 3)
 
                                                 Text(shouldShowLabel ? formatYearLabel(point.period) : "")
                                                     .font(.system(size: 14, weight: .semibold))
@@ -218,26 +213,26 @@ struct SharesOutstandingChartView: View {
             }
         }
         .onAppear {
-            if sharesOutstandingData.isEmpty {
-                loadSharesOutstanding()
+            if grossMarginData.isEmpty {
+                loadGrossMargin()
             }
         }
     }
 
-    private func loadSharesOutstanding() {
+    private func loadGrossMargin() {
         isLoading = true
 
         Task {
             do {
-                let data = try await apiService.fetchSharesOutstanding(symbol: symbol)
+                let data = try await apiService.fetchTTMGrossMargin(symbol: symbol)
                 await MainActor.run {
-                    sharesOutstandingData = data
+                    grossMarginData = data
                     isLoading = false
                     onDataLoaded?(data)
                 }
             } catch {
                 await MainActor.run {
-                    sharesOutstandingData = []
+                    grossMarginData = []
                     isLoading = false
                     onDataLoaded?([])
                 }
@@ -246,7 +241,7 @@ struct SharesOutstandingChartView: View {
     }
 
     private func barHeight(for value: Double, in maxHeight: CGFloat) -> CGFloat {
-        let range = sharesOutstandingRange
+        let range = grossMarginRange
         let totalRange = range.max - range.min
         guard totalRange > 0 else { return 0 }
 
@@ -277,18 +272,18 @@ struct SharesOutstandingChartView: View {
     }
 
     private func formatDetailedValue(_ value: Double) -> String {
-        ChartUtilities.formatCurrencyValue(value)
+        ChartUtilities.formatPercentage(value)
     }
 
     private func formatYAxisValue(_ value: Double) -> String {
-        ChartUtilities.formatFinancialYAxisLabel(value, scale: valueScale)
+        ChartUtilities.formatPercentageYAxisLabel(value)
     }
 
     /// Calculate Y offset for a label at given index to align with gridlines
     /// Uses value-based positioning to ensure proportional spacing for asymmetric ranges
     private func yOffsetForLabel(at index: Int) -> CGFloat {
         let labels = getYAxisLabels()
-        let range = sharesOutstandingRange
+        let range = grossMarginRange
         let totalRange = range.max - range.min
         guard totalRange > 0 else { return 0 }
 

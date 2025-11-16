@@ -21,8 +21,8 @@ class SubscriptionManager: ObservableObject {
     // MARK: - Product IDs
     // These MUST match exactly with the product IDs you create in App Store Connect
     private let productIDs: [String] = [
-        "RPG-Team.Test-App.monthly",   // Monthly subscription product ID
-        "RPG-Team.Test-App.annual"     // Annual subscription product ID
+        "com.ekonixlab.ekonix.premium.monthly",   // Monthly subscription product ID
+        "com.ekonixlab.ekonix.premium.yearly"     // Yearly subscription product ID
     ]
 
     private var updateListenerTask: Task<Void, Error>?
@@ -44,10 +44,29 @@ class SubscriptionManager: ObservableObject {
     // MARK: - Load Products
     func loadProducts() async {
         do {
+            print("📦 Loading products for IDs: \(productIDs)")
             let products = try await Product.products(for: productIDs)
+            print("✅ Successfully loaded \(products.count) products:")
+            for product in products {
+                print("  - \(product.displayName) (\(product.id)): \(product.localizedPrice)")
+            }
+
+            if products.isEmpty {
+                print("⚠️ WARNING: No products returned from StoreKit")
+                print("   This usually means:")
+                print("   1. Products not configured in App Store Connect")
+                print("   2. Bundle ID mismatch between app and App Store Connect")
+                print("   3. App needs to be submitted for review before subscriptions work in TestFlight")
+            }
+
             self.subscriptions = products.sorted { $0.price < $1.price }
         } catch {
-            print("Failed to load products: \(error)")
+            print("❌ Failed to load products: \(error)")
+            print("   Error details: \(error.localizedDescription)")
+            print("   Error type: \(type(of: error))")
+            if let storeError = error as? StoreKitError {
+                print("   StoreKit error: \(storeError)")
+            }
         }
     }
 

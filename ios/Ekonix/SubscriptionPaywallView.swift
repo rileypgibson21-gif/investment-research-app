@@ -15,6 +15,7 @@ struct SubscriptionPaywallView: View {
     @State private var isPurchasing = false
     @State private var showError = false
     @State private var errorMessage = ""
+    @State private var hasAttemptedLoad = false
 
     var body: some View {
         ZStack {
@@ -68,6 +69,34 @@ struct SubscriptionPaywallView: View {
                                     selectedProduct = product
                                 }
                             }
+                        }
+                        .padding(.horizontal, 24)
+                    } else if hasAttemptedLoad {
+                        VStack(spacing: 16) {
+                            Image(systemName: "exclamationmark.triangle")
+                                .font(.system(size: 50))
+                                .foregroundStyle(.yellow)
+
+                            Text("Unable to Load Subscriptions")
+                                .font(.headline)
+                                .foregroundStyle(.white)
+
+                            Text("Please check your internet connection and try again.")
+                                .font(.subheadline)
+                                .foregroundStyle(.white.opacity(0.8))
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal)
+
+                            Button("Retry") {
+                                Task {
+                                    await subscriptionManager.loadProducts()
+                                }
+                            }
+                            .padding(.horizontal, 32)
+                            .padding(.vertical, 12)
+                            .background(Color.blue)
+                            .foregroundStyle(.white)
+                            .cornerRadius(12)
                         }
                         .padding(.horizontal, 24)
                     } else {
@@ -142,9 +171,25 @@ struct SubscriptionPaywallView: View {
             Text(errorMessage)
         }
         .onAppear {
+            print("💳 Paywall appeared")
+            print("   Available products: \(subscriptionManager.subscriptions.count)")
             // Select the first product by default
             if selectedProduct == nil {
                 selectedProduct = subscriptionManager.subscriptions.first
+                if let product = selectedProduct {
+                    print("   ✅ Auto-selected product: \(product.displayName)")
+                } else {
+                    print("   ⚠️ No products available to select")
+                }
+            }
+
+            // Set timeout to show error if products don't load
+            Task {
+                try? await Task.sleep(for: .seconds(5))
+                if subscriptionManager.subscriptions.isEmpty {
+                    hasAttemptedLoad = true
+                    print("   ❌ Products failed to load within timeout")
+                }
             }
         }
     }

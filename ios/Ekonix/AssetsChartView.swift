@@ -1,46 +1,45 @@
 //
-//  TTMSharesOutstandingChartView.swift
+//  AssetsChartView.swift
 //  Ekonix
 //
-//  Created for gross profit TTM chart
+//  Created for assets quarterly chart
 //
 
 import SwiftUI
 
-struct TTMSharesOutstandingChartView: View {
+struct AssetsChartView: View {
     let symbol: String
     let apiService: StockAPIService
-    var onDataLoaded: (([SharesOutstandingDataPoint]) -> Void)? = nil
+    var onDataLoaded: (([AssetsDataPoint]) -> Void)? = nil
 
-    @State private var sharesOutstandingData: [SharesOutstandingDataPoint] = []
+    @State private var assetsData: [AssetsDataPoint] = []
     @State private var isLoading = false
     @State private var selectedBar: UUID?
-    @State private var errorMessage: String?
 
-    var displayData: [SharesOutstandingDataPoint] {
-        // Sort by period (oldest first on left, newest on right) and take latest 37 TTM periods
-        let sorted = sharesOutstandingData.sorted { $0.period < $1.period }
-        return Array(sorted.suffix(ChartConstants.ttmDataLimit))
+    var displayData: [AssetsDataPoint] {
+        // Sort by period (oldest first on left, newest on right) and take latest 40 quarters
+        let sorted = assetsData.sorted { $0.period < $1.period }
+        return Array(sorted.suffix(ChartConstants.quarterlyDataLimit))
     }
 
-    var sharesOutstandingRange: (min: Double, max: Double) {
-        let values = displayData.map { $0.sharesOutstanding }
+    var assetsRange: (min: Double, max: Double) {
+        let values = displayData.map { $0.assets }
         return ChartUtilities.calculateAdaptiveRange(values: values)
     }
 
     private var valueScale: ChartUtilities.ValueScale {
-        let values = displayData.map { $0.sharesOutstanding }
+        let values = displayData.map { $0.assets }
         return ChartUtilities.detectValueScale(values: values)
     }
 
     private func getYAxisLabels() -> [Double] {
-        let range = sharesOutstandingRange
+        let range = assetsRange
         return ChartUtilities.generateYAxisLabels(minValue: range.min, maxValue: range.max)
     }
 
     /// Calculate the Y position where zero line sits (as fraction of chart height from bottom)
     private var zeroLinePosition: CGFloat {
-        let range = sharesOutstandingRange
+        let range = assetsRange
         let totalRange = range.max - range.min
         guard totalRange > 0 else { return 0 }
         // Zero position as fraction from bottom: -min / totalRange
@@ -55,32 +54,16 @@ struct TTMSharesOutstandingChartView: View {
                     ProgressView()
                     Spacer()
                 }
-            } else if let error = errorMessage {
-                VStack(spacing: 20) {
-                    Spacer()
-                    Image(systemName: "exclamationmark.triangle")
-                        .font(.system(size: 60))
-                        .foregroundStyle(.red)
-                    if !error.isEmpty {
-                        Text(error)
-                            .foregroundStyle(.secondary)
-                            .padding(.horizontal)
-                    }
-                    Button("Retry") {
-                        loadSharesOutstanding()
-                    }
-                    Spacer()
-                }
-            } else if sharesOutstandingData.isEmpty {
+            } else if assetsData.isEmpty {
                 VStack(spacing: 20) {
                     Spacer()
                     Image(systemName: "chart.bar.xaxis")
                         .font(.system(size: 60))
                         .foregroundStyle(.gray)
-                    Text("No TTM shares outstanding data available")
+                    Text("No assets data available")
                         .foregroundStyle(.secondary)
                     Button("Retry") {
-                        loadSharesOutstanding()
+                        loadAssets()
                     }
                     Spacer()
                 }
@@ -89,7 +72,7 @@ struct TTMSharesOutstandingChartView: View {
                     VStack(spacing: 20) {
                         // Chart with title
                         VStack(alignment: .leading, spacing: 16) {
-                            Text("Trailing Twelve Months Shares Outstanding")
+                            Text("Quarterly Assets")
                                 .font(.headline)
                                 .frame(maxWidth: .infinity, alignment: .center)
 
@@ -118,8 +101,8 @@ struct TTMSharesOutstandingChartView: View {
                                             // Data bars (drawn first, behind gridlines)
                                             HStack(alignment: .bottom, spacing: ChartConstants.barSpacing) {
                                                 ForEach(Array(displayData.enumerated()), id: \.element.id) { index, point in
-                                                    let heightValue = barHeight(for: point.sharesOutstanding, in: ChartConstants.chartHeight)
-                                                    let offsetValue = barOffset(for: point.sharesOutstanding, barHeight: heightValue, in: ChartConstants.chartHeight)
+                                                    let heightValue = barHeight(for: point.assets, in: ChartConstants.chartHeight)
+                                                    let offsetValue = barOffset(for: point.assets, barHeight: heightValue, in: ChartConstants.chartHeight)
 
                                                     VStack(spacing: 4) {
                                                         if selectedBar == point.id {
@@ -127,7 +110,7 @@ struct TTMSharesOutstandingChartView: View {
                                                                 Text(formatDate(point.period))
                                                                     .font(.caption2)
                                                                     .fontWeight(.bold)
-                                                                Text(formatDetailedValue(point.sharesOutstanding))
+                                                                Text(formatDetailedValue(point.assets))
                                                                     .font(.caption2)
                                                                     .fontWeight(.semibold)
                                                                 #if DEBUG
@@ -193,7 +176,7 @@ struct TTMSharesOutstandingChartView: View {
                                             .allowsHitTesting(false)
 
                                             // Highlighted zero line (drawn last, most prominent)
-                                            if sharesOutstandingRange.min < 0 && sharesOutstandingRange.max > 0 {
+                                            if assetsRange.min < 0 && assetsRange.max > 0 {
                                                 Rectangle()
                                                     .fill(Color.gray.opacity(0.5))
                                                     .frame(height: 1)
@@ -202,12 +185,12 @@ struct TTMSharesOutstandingChartView: View {
                                             }
                                         }
 
-                                        // X-axis labels - show every 7th period for 37 bars (shows ~5-6 year labels)
+                                        // X-axis labels - show every 8th quarter for 40 bars (shows ~5 year labels)
                                         HStack(alignment: .top, spacing: ChartConstants.barSpacing) {
                                             ForEach(Array(displayData.enumerated()), id: \.element.id) { index, point in
                                                 let isLastIndex = index == displayData.count - 1
-                                                let lastSampledIndex = (displayData.count - 1) / 7 * 7
-                                                let shouldShowLabel = index % 7 == 0 || (isLastIndex && index - lastSampledIndex >= 3)
+                                                let lastSampledIndex = (displayData.count - 1) / 8 * 8
+                                                let shouldShowLabel = index % 8 == 0 || (isLastIndex && index - lastSampledIndex >= 4)
 
                                                 Text(shouldShowLabel ? formatYearLabel(point.period) : "")
                                                     .font(.system(size: 14, weight: .semibold))
@@ -235,37 +218,35 @@ struct TTMSharesOutstandingChartView: View {
             }
         }
         .onAppear {
-            if sharesOutstandingData.isEmpty {
-                loadSharesOutstanding()
+            if assetsData.isEmpty {
+                loadAssets()
             }
         }
     }
 
-    private func loadSharesOutstanding() {
+    private func loadAssets() {
         isLoading = true
-        errorMessage = nil
 
         Task {
             do {
-                let data = try await apiService.fetchTTMSharesOutstanding(symbol: symbol)
+                let data = try await apiService.fetchAssets(symbol: symbol)
                 await MainActor.run {
-                    sharesOutstandingData = data
-                    onDataLoaded?(data)
+                    assetsData = data
                     isLoading = false
+                    onDataLoaded?(data)
                 }
             } catch {
                 await MainActor.run {
-                    sharesOutstandingData = []
-                    errorMessage = "Failed to load TTM shares outstanding data"
-                    onDataLoaded?([])
+                    assetsData = []
                     isLoading = false
+                    onDataLoaded?([])
                 }
             }
         }
     }
 
     private func barHeight(for value: Double, in maxHeight: CGFloat) -> CGFloat {
-        let range = sharesOutstandingRange
+        let range = assetsRange
         let totalRange = range.max - range.min
         guard totalRange > 0 else { return 0 }
 
@@ -307,7 +288,7 @@ struct TTMSharesOutstandingChartView: View {
     /// Uses value-based positioning to ensure proportional spacing for asymmetric ranges
     private func yOffsetForLabel(at index: Int) -> CGFloat {
         let labels = getYAxisLabels()
-        let range = sharesOutstandingRange
+        let range = assetsRange
         let totalRange = range.max - range.min
         guard totalRange > 0 else { return 0 }
 

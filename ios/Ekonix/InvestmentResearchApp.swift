@@ -18,7 +18,7 @@ struct InvestmentResearchApp: App {
     // MARK: - Development Bypass
     // Set this to true to skip subscription requirement during development
     #if DEBUG
-    private let bypassSubscription = true  // Change to false to test subscription flow
+    private let bypassSubscription = false  // Change to false to test subscription flow
     #else
     private let bypassSubscription = false
     #endif

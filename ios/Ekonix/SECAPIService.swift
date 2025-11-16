@@ -149,15 +149,7 @@ class SECAPIService {
            let latest = units.sorted(by: { $0.end > $1.end }).first {
             metrics.marketCap = latest.val
         }
-        
-        // Extract shares outstanding
-        if let shares = facts.facts.dei?["EntityCommonStockSharesOutstanding"],
-           let units = shares.units["shares"],
-           let latest = units.sorted(by: { $0.end > $1.end }).first {
-            // Can use this for calculations if needed
-            print("Shares outstanding: \(latest.val)")
-        }
-        
+
         return metrics
     }
     

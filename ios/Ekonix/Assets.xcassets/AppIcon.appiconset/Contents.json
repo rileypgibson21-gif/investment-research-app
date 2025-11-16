@@ -1,7 +1,7 @@
 {
   "images" : [
     {
-      "filename" : "Gemini_Generated_Image_ql4cx5ql4cx5ql4c.png",
+      "filename" : "Ekonix Logo Normal.png",
       "idiom" : "universal",
       "platform" : "ios",
       "size" : "1024x1024"
@@ -13,7 +13,7 @@
           "value" : "dark"
         }
       ],
-      "filename" : "Gemini_Generated_Image_jic4k0jic4k0jic4.png",
+      "filename" : "Ekonix Logo Dark.png",
       "idiom" : "universal",
       "platform" : "ios",
       "size" : "1024x1024"
@@ -25,7 +25,6 @@
           "value" : "tinted"
         }
       ],
-      "filename" : "Gemini_Generated_Image_7lu4zd7lu4zd7lu4.png",
       "idiom" : "universal",
       "platform" : "ios",
       "size" : "1024x1024"
