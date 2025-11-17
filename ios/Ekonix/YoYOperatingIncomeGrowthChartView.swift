@@ -15,7 +15,7 @@ struct YoYOperatingIncomeGrowthChartView: View {
     @State private var operatingIncomeData: [OperatingIncomeDataPoint] = []
     @State private var isLoading = false
     @State private var selectedBar: String?
-     private var hasAppeared = false
+    @State private var hasAppeared = false
 
     struct GrowthDataPoint: Identifiable {
         let period: String
@@ -303,10 +303,9 @@ struct YoYOperatingIncomeGrowthChartView: View {
                             }
                             .frame(height: 380)
                         }
-                        .padding()
                         .background(Color(uiColor: .systemBackground))
                         .cornerRadius(12)
-                        .padding()
+                        .padding(.horizontal, 4)
                     }
                 }
             }

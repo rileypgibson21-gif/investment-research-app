@@ -15,7 +15,7 @@ struct YoYOperatingMarginGrowthChartView: View {
     @State private var operatingMarginData: [OperatingMarginDataPoint] = []
     @State private var isLoading = false
     @State private var selectedBar: String?  // Changed from UUID? to String?
-     private var hasAppeared = false
+    @State private var hasAppeared = false
 
     struct GrowthDataPoint: Identifiable {
         let period: String
@@ -283,10 +283,9 @@ struct YoYOperatingMarginGrowthChartView: View {
                             }
                             .frame(height: 380)
                         }
-                        .padding()
                         .background(Color(uiColor: .systemBackground))
                         .cornerRadius(12)
-                        .padding()
+                        .padding(.horizontal, 4)
                     }
                 }
     }

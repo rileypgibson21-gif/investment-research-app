@@ -15,6 +15,7 @@ struct YoYEBITDAGrowthChartView: View {
     @State private var ebitdaData: [EBITDADataPoint] = []
     @State private var isLoading = false
     @State private var selectedBar: String?
+    @State private var hasAppeared = false
 
     struct GrowthDataPoint: Identifiable {
         let period: String
@@ -302,10 +303,9 @@ struct YoYEBITDAGrowthChartView: View {
                             }
                             .frame(height: 380)
                         }
-                        .padding()
                         .background(Color(uiColor: .systemBackground))
                         .cornerRadius(12)
-                        .padding()
+                        .padding(.horizontal, 4)
                     }
                 }
             }

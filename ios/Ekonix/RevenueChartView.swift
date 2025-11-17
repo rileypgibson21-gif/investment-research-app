@@ -224,10 +224,9 @@ struct RevenueChartView: View {
                             }
                             .frame(height: 380)
                         }
-                        .padding()
                         .background(Color(uiColor: .systemBackground))
                         .cornerRadius(12)
-                        .padding()
+                        .padding(.horizontal, 4)
 
                         // Remove individual data table from quarterly chart
                     }

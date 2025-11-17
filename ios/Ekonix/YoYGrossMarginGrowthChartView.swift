@@ -15,6 +15,7 @@ struct YoYGrossMarginGrowthChartView: View {
     @State private var grossMarginData: [GrossMarginDataPoint] = []
     @State private var isLoading = false
     @State private var selectedBar: String?  // Changed from UUID? to String?
+    @State private var hasAppeared = false
 
     struct GrowthDataPoint: Identifiable {
         let period: String
@@ -282,10 +283,9 @@ struct YoYGrossMarginGrowthChartView: View {
                             }
                             .frame(height: 380)
                         }
-                        .padding()
                         .background(Color(uiColor: .systemBackground))
                         .cornerRadius(12)
-                        .padding()
+                        .padding(.horizontal, 4)
                     }
                 }
     }
