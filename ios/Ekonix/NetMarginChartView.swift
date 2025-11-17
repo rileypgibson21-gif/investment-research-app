@@ -159,7 +159,7 @@ struct NetMarginChartView: View {
                                             }
                                             .padding(.horizontal, 4)
                                             .simultaneousGesture(
-                                                DragGesture(minimumDistance: 0)
+                                                DragGesture(minimumDistance: 20)
                                                     .onChanged { value in
                                                         // Calculate which bar is being dragged over
                                                         let totalBarWidth = dynamicBarWidth + ChartConstants.barSpacing

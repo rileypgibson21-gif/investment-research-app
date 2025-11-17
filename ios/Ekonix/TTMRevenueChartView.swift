@@ -189,7 +189,7 @@ struct TTMRevenueChartView: View {
                                             }
                                             .padding(.horizontal, 8)
                                             .simultaneousGesture(
-                                                DragGesture(minimumDistance: 0)
+                                                DragGesture(minimumDistance: 20)
                                                     .onChanged { value in
                                                         // Calculate which bar is being dragged over
                                                         let totalBarWidth = dynamicBarWidth + ChartConstants.barSpacing
