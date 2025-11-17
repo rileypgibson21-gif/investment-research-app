@@ -207,12 +207,10 @@ struct YoYGrowthChartView: View {
                                                         .id(point.id)
                                                         .contentShape(Rectangle())
                                                         .onTapGesture {
-                                                            withAnimation(.easeInOut(duration: 0.2)) {
-                                                                if selectedBar == point.id {
+                                                            if selectedBar == point.id {
                                                                     selectedBar = nil
                                                                 } else {
                                                                     selectedBar = point.id
-                                                                }
                                                             }
                                                         }
                                                     }
@@ -228,9 +226,7 @@ struct YoYGrowthChartView: View {
 
                                                         // Update selected bar if valid index
                                                         if barIndex >= 0 && barIndex < displayData.count {
-                                                            withAnimation(.easeInOut(duration: 0.1)) {
-                                                                selectedBar = displayData[barIndex].id
-                                                            }
+                                                            selectedBar = displayData[barIndex].id
                                                         }
                                                     }
                                                     .onEnded { _ in
