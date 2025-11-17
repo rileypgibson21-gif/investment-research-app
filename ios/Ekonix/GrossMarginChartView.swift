@@ -123,7 +123,6 @@ struct GrossMarginChartView: View {
                                                             )
                                                             .fixedSize()
                                                             .offset(x: index < 3 ? 20 : (index >= displayData.count - 3 ? -20 : 0))
-                                                            .transition(.opacity.combined(with: .scale))
                                                         } else {
                                                             // Empty spacer to maintain consistent height
                                                             Color.clear
