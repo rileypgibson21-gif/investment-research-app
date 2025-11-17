@@ -352,8 +352,8 @@ enum ChartConstants {
 
     static let chartHeight: CGFloat = 240
     static let barChartHeight: CGFloat = 210
-    static let yAxisWidth: CGFloat = 50  // Reduced from 60 to give more space for bars
-    static let rightPadding: CGFloat = 8  // Reduced from 20 to maximize chart width
+    static let yAxisWidth: CGFloat = 50  // Width of Y-axis labels on left
+    static let rightPadding: CGFloat = 50  // Match Y-axis width to center chart bars
     static let barSpacing: CGFloat = 2  // Minimal spacing for 40 bars to fit on screen
 
     static let scrollDelay: TimeInterval = 0.1
