@@ -158,7 +158,7 @@ struct NetMarginChartView: View {
                                                 }
                                             }
                                             .padding(.horizontal, 4)
-                                            .gesture(
+                                            .simultaneousGesture(
                                                 DragGesture(minimumDistance: 0)
                                                     .onChanged { value in
                                                         // Calculate which bar is being dragged over
