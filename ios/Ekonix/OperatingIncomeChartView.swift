@@ -15,6 +15,7 @@ struct OperatingIncomeChartView: View {
     @State private var operatingIncomeData: [OperatingIncomeDataPoint] = []
     @State private var isLoading = false
     @State private var selectedBar: UUID?
+    @State private var hasAppeared = false
 
     var displayData: [OperatingIncomeDataPoint] {
         // Sort by period (oldest first on left, newest on right) and take latest 40 quarters
@@ -236,7 +237,12 @@ struct OperatingIncomeChartView: View {
                 }
             }
         }
+        .scaleEffect(hasAppeared ? 1.0 : 0.8)
+        .opacity(hasAppeared ? 1.0 : 0.0)
         .onAppear {
+            withAnimation(.spring(response: 0.6, dampingFraction: 0.7)) {
+                hasAppeared = true
+            }
             if operatingIncomeData.isEmpty {
                 loadOperatingIncome()
             }

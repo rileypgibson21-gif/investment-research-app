@@ -15,6 +15,7 @@ struct TTMNetIncomeChartView: View {
     @State private var netIncomeData: [NetIncomeDataPoint] = []
     @State private var isLoading = false
     @State private var selectedBar: UUID?
+    @State private var hasAppeared = false
     @State private var errorMessage: String?
 
     var displayData: [NetIncomeDataPoint] {
@@ -253,7 +254,12 @@ struct TTMNetIncomeChartView: View {
                 }
             }
         }
+        .scaleEffect(hasAppeared ? 1.0 : 0.8)
+        .opacity(hasAppeared ? 1.0 : 0.0)
         .onAppear {
+            withAnimation(.spring(response: 0.6, dampingFraction: 0.7)) {
+                hasAppeared = true
+            }
             if netIncomeData.isEmpty {
                 loadNetIncome()
             }

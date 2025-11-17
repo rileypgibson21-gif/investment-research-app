@@ -15,6 +15,7 @@ struct YoYOperatingIncomeGrowthChartView: View {
     @State private var operatingIncomeData: [OperatingIncomeDataPoint] = []
     @State private var isLoading = false
     @State private var selectedBar: String?
+     private var hasAppeared = false
 
     struct GrowthDataPoint: Identifiable {
         let period: String
@@ -310,7 +311,12 @@ struct YoYOperatingIncomeGrowthChartView: View {
                 }
             }
         }
+        .scaleEffect(hasAppeared ? 1.0 : 0.8)
+        .opacity(hasAppeared ? 1.0 : 0.0)
         .onAppear {
+            withAnimation(.spring(response: 0.6, dampingFraction: 0.7)) {
+                hasAppeared = true
+            }
             if operatingIncomeData.isEmpty {
                 loadOperatingIncome()
             }

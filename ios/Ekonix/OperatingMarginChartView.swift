@@ -15,6 +15,7 @@ struct OperatingMarginChartView: View {
     @State private var operatingMarginData: [OperatingMarginDataPoint] = []
     @State private var isLoading = false
     @State private var selectedBar: UUID?
+    @State private var hasAppeared = false
 
     var displayData: [OperatingMarginDataPoint] {
         // Sort by period (oldest first on left, newest on right) and take latest 37 TTM periods
@@ -231,7 +232,12 @@ struct OperatingMarginChartView: View {
                 }
             }
         }
+        .scaleEffect(hasAppeared ? 1.0 : 0.8)
+        .opacity(hasAppeared ? 1.0 : 0.0)
         .onAppear {
+            withAnimation(.spring(response: 0.6, dampingFraction: 0.7)) {
+                hasAppeared = true
+            }
             if operatingMarginData.isEmpty {
                 loadOperatingMargin()
             }

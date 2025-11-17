@@ -15,6 +15,7 @@ struct TTMAssetsChartView: View {
     @State private var assetsData: [AssetsDataPoint] = []
     @State private var isLoading = false
     @State private var selectedBar: UUID?
+    @State private var hasAppeared = false
     @State private var errorMessage: String?
 
     var displayData: [AssetsDataPoint] {
@@ -253,7 +254,12 @@ struct TTMAssetsChartView: View {
                 }
             }
         }
+        .scaleEffect(hasAppeared ? 1.0 : 0.8)
+        .opacity(hasAppeared ? 1.0 : 0.0)
         .onAppear {
+            withAnimation(.spring(response: 0.6, dampingFraction: 0.7)) {
+                hasAppeared = true
+            }
             if assetsData.isEmpty {
                 loadAssets()
             }

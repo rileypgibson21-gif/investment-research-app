@@ -15,6 +15,7 @@ struct YoYOperatingMarginGrowthChartView: View {
     @State private var operatingMarginData: [OperatingMarginDataPoint] = []
     @State private var isLoading = false
     @State private var selectedBar: String?  // Changed from UUID? to String?
+     private var hasAppeared = false
 
     struct GrowthDataPoint: Identifiable {
         let period: String
@@ -315,7 +316,12 @@ struct YoYOperatingMarginGrowthChartView: View {
                 chartContentView
             }
         }
+        .scaleEffect(hasAppeared ? 1.0 : 0.8)
+        .opacity(hasAppeared ? 1.0 : 0.0)
         .onAppear {
+            withAnimation(.spring(response: 0.6, dampingFraction: 0.7)) {
+                hasAppeared = true
+            }
             if operatingMarginData.isEmpty {
                 loadOperatingMargin()
             }

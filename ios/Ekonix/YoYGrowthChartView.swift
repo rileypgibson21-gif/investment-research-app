@@ -315,7 +315,12 @@ struct YoYGrowthChartView: View {
                 chartContentView
             }
         }
+        .scaleEffect(hasAppeared ? 1.0 : 0.8)
+        .opacity(hasAppeared ? 1.0 : 0.0)
         .onAppear {
+            withAnimation(.spring(response: 0.6, dampingFraction: 0.7)) {
+                hasAppeared = true
+            }
             if revenueData.isEmpty {
                 loadRevenue()
             }
