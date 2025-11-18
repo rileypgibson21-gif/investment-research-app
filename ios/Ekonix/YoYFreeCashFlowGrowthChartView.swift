@@ -208,6 +208,15 @@ struct YoYFreeCashFlowGrowthChartView: View {
                                                             }
 
                                                             Spacer(minLength: 0)
+                                                                .overlay(
+                                                                    Group {
+                                                                        if selectedBar == point.id {
+                                                                            Rectangle()
+                                                                                .fill(point.growthPercent >= 0 ? Color.green : Color.red)
+                                                                                .frame(width: 2)
+                                                                        }
+                                                                    }
+                                                                )
 
                                                             // Bar positioned at zero line
                                                             ZStack(alignment: .bottom) {

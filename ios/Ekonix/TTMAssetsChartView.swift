@@ -153,6 +153,15 @@ struct TTMAssetsChartView: View {
                                                         }
 
                                                         Spacer(minLength: 0)
+                                                            .overlay(
+                                                                Group {
+                                                                    if selectedBar == point.id {
+                                                                        Rectangle()
+                                                                            .fill(Color.blue)
+                                                                            .frame(width: 2)
+                                                                    }
+                                                                }
+                                                            )
 
                                                         // Bar positioned at zero line
                                                         ZStack(alignment: .bottom) {
