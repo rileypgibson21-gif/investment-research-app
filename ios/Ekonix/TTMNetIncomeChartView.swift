@@ -145,16 +145,17 @@ struct TTMNetIncomeChartView: View {
                                                                     .fill(Color.blue)
                                                             )
                                                             .fixedSize()
-                                                            .offset(x: index < 3 ? 20 : (index >= displayData.count - 3 ? -20 : 0))
-                                                        
-                                                        // Connecting line from tooltip to bar
-                                                        Rectangle()
-                                                            .fill(Color.gray.opacity(0.3))
-                                                            .frame(width: 1)
-                                                        } else {
+                                                            .offset(x: index < 3 ? 20 : (index >= displayData.count - 3 ? -20 : 0))                                                        } else {
                                                             // Empty spacer to maintain consistent height
                                                             Color.clear
                                                                 .frame(height: 50)
+                                                        }
+
+                                                        // Connecting line from tooltip to bar (only visible when selected)
+                                                        if selectedBar == point.id {
+                                                            Rectangle()
+                                                                .fill(Color.gray.opacity(0.3))
+                                                                .frame(width: 1)
                                                         }
 
                                                         Spacer(minLength: 0)
