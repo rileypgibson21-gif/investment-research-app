@@ -181,6 +181,11 @@ struct YoYOperatingMarginGrowthChartView: View {
                                                                 )
                                                                 .fixedSize()
                                                                 .offset(x: index < 3 ? 20 : (index >= displayData.count - 3 ? -20 : 0))
+
+                                                                // Connecting line from tooltip to bar
+                                                                Rectangle()
+                                                                    .fill(Color.gray.opacity(0.3))
+                                                                    .frame(width: 1)
                                                             } else {
                                                                 // Empty spacer to maintain consistent height
                                                                 Color.clear
