@@ -3267,7 +3267,7 @@ struct ContentView: View {
                 }
                 .tag(2)
             
-            DiscoverView(showingAddStock: $showingAddStock)
+            DiscoverView(showingAddStock: $showingAddStock, modelContext: modelContext, items: items)
                 .tabItem {
                     Label("Discover", systemImage: "chart.line.uptrend.xyaxis")
                 }
@@ -3672,29 +3672,31 @@ struct NewsRowView: View {
 // MARK: - Discover View
 struct DiscoverView: View {
     @Binding var showingAddStock: Bool
-    
+    let modelContext: ModelContext
+    let items: [ResearchItem]
+
     let popularStocks = ["AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "META", "TSLA", "BRK.B", "JPM", "V"]
     let techStocks = ["AAPL", "MSFT", "GOOGL", "NVDA", "META", "AMD", "INTC", "CRM", "ADBE", "ORCL"]
     let financialStocks = ["JPM", "BAC", "WFC", "GS", "MS", "C", "BLK", "SCHW", "AXP", "USB"]
-    
+
     var body: some View {
         NavigationStack {
             List {
                 Section("Popular Stocks") {
                     ForEach(popularStocks, id: \.self) { symbol in
-                        QuickAddRow(symbol: symbol, showingAddStock: $showingAddStock)
+                        QuickAddRow(symbol: symbol, modelContext: modelContext, items: items)
                     }
                 }
-                
+
                 Section("Technology") {
                     ForEach(techStocks, id: \.self) { symbol in
-                        QuickAddRow(symbol: symbol, showingAddStock: $showingAddStock)
+                        QuickAddRow(symbol: symbol, modelContext: modelContext, items: items)
                     }
                 }
-                
+
                 Section("Financials") {
                     ForEach(financialStocks, id: \.self) { symbol in
-                        QuickAddRow(symbol: symbol, showingAddStock: $showingAddStock)
+                        QuickAddRow(symbol: symbol, modelContext: modelContext, items: items)
                     }
                 }
             }
@@ -3705,21 +3707,47 @@ struct DiscoverView: View {
 
 struct QuickAddRow: View {
     let symbol: String
-    @Binding var showingAddStock: Bool
-    
+    let modelContext: ModelContext
+    let items: [ResearchItem]
+
+    private var isAlreadyAdded: Bool {
+        items.contains { $0.symbol == symbol }
+    }
+
     var body: some View {
         HStack {
             Text(symbol)
                 .font(.headline)
-            
+
             Spacer()
-            
-            Button(action: { showingAddStock = true }) {
-                Image(systemName: "plus.circle.fill")
-                    .foregroundStyle(.blue)
+
+            if isAlreadyAdded {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(.green)
+            } else {
+                Button(action: addStockToResearch) {
+                    Image(systemName: "plus.circle.fill")
+                        .foregroundStyle(.blue)
+                }
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
         }
+    }
+
+    private func addStockToResearch() {
+        // Don't add if already exists
+        guard !isAlreadyAdded else { return }
+
+        // Create new research item with the symbol
+        let newItem = ResearchItem(
+            symbol: symbol,
+            name: symbol, // We'll use symbol as name for now
+            currentPrice: 0.0,
+            priceChange: 0.0,
+            priceChangePercent: 0.0
+        )
+
+        modelContext.insert(newItem)
     }
 }
 
