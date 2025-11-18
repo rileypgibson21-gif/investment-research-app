@@ -138,7 +138,7 @@ struct NetIncomeChartView: View {
                                                         if selectedBar == point.id {
                                                             Rectangle()
                                                                 .fill(Color.gray.opacity(0.5))
-                                                                .frame(width: 1)
+                                                                .frame(width: 1, maxHeight: .infinity)
                                                         } else {
                                                             Spacer(minLength: 0)
                                                         }
