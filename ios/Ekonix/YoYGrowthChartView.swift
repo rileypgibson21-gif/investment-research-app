@@ -187,14 +187,14 @@ struct YoYGrowthChartView: View {
                                                                     .frame(height: 50)
                                                             }
 
-                                                            // Connecting line from tooltip to bar (only visible when selected)
+                                                            // Connecting line from tooltip to bar (fills space between tooltip and bar)
                                                             if selectedBar == point.id {
                                                                 Rectangle()
-                                                                    .fill(Color.gray.opacity(0.3))
+                                                                    .fill(Color.gray.opacity(0.5))
                                                                     .frame(width: 1)
+                                                            } else {
+                                                                Spacer(minLength: 0)
                                                             }
-
-                                                            Spacer(minLength: 0)
 
                                                             // Bar positioned at zero line
                                                             ZStack(alignment: .bottom) {
